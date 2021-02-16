@@ -11,6 +11,8 @@ use std::{error::Error, fs::File};
 
 pub(crate) mod emulator;
 
+use emulator::instr::Instruction;
+
 fn u32_vec_from_file(mut file: File) -> Vec<u32> {
     let mut data = Vec::new();
     file.read_to_end(&mut data).unwrap();
@@ -61,7 +63,11 @@ fn main() -> Result<()> {
 
     if let Some(matches) = matches.subcommand_matches("decode") {
         let executable = Executable::from_naked_files(matches.value_of("file").unwrap())?;
-        println!("{:?}", executable);
+
+        for word in executable.text {
+            println!("{}", Instruction::decode(word)?);
+        }
+
         Ok(())
     } else if let Some(matches) = matches.subcommand_matches("run") {
         let executable = Executable::from_naked_files(matches.value_of("file").unwrap())?;
