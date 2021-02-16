@@ -9,6 +9,8 @@ use color_eyre::eyre::Result;
 use std::io::Read;
 use std::{error::Error, fs::File};
 
+pub(crate) mod emulator;
+
 fn u32_vec_from_file(mut file: File) -> Vec<u32> {
     let mut data = Vec::new();
     file.read_to_end(&mut data).unwrap();
