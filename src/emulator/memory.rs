@@ -41,10 +41,10 @@ impl Memory {
     }
 
     /// Carrega um bloco de dados na memória a partir do endereço especificado.
-    pub fn load_slice_into_addr(&mut self, addr: u32, data: &[u32]) -> Result<()> {
-        check_alignment!(addr);
+    pub fn load_slice_into_addr(&mut self, base: u32, data: &[u32]) -> Result<()> {
+        check_alignment!(base);
 
-        let mut addr = addr;
+        let mut addr = base;
         for word in data {
             self.poke(addr, *word)?;
             addr += 4;
