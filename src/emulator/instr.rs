@@ -2,17 +2,33 @@ use color_eyre::eyre::{Result, eyre};
 
 use super::Register;
 
+pub fn sign_extend(val: u32, init_size: u32) -> u32 {
+    let sgn = (val & (1 << (init_size - 1))) >> (init_size - 1);
+
+    if sgn == 0 {
+        val
+    } else {
+        let mut ret = val;
+
+        for i in (init_size + 1)..32 {
+            ret |= 1 << i;
+        }
+
+        ret
+    }
+}
+
 pub struct RArgs {
-    rs: Register,
-    rt: Register,
-    rd: Register,
-    shamt: u32,
+    pub rs: Register,
+    pub rt: Register,
+    pub rd: Register,
+    pub shamt: u32,
 }
 
 pub struct IArgs {
-    rs: Register,
-    rt: Register,
-    imm: u32,
+    pub rs: Register,
+    pub rt: Register,
+    pub imm: u32,
 }
 
 /// TODO melhorar docs

@@ -4,6 +4,11 @@ pub(crate) mod cpu;
 pub(crate) mod instr;
 pub(crate) mod memory;
 
+// Re-exports pra ficar melhor de usar ao longo do código
+pub use cpu::Cpu;
+pub use instr::{Instruction, RArgs, IArgs};
+pub use memory::Memory;
+
 pub struct Register(u32);
 
 impl std::fmt::Display for Register {
