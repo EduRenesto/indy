@@ -37,6 +37,9 @@ pub enum Instruction {
     ADD(RArgs),
     ADDI(IArgs),
     SYSCALL,
+    LUI(IArgs),
+    ORI(IArgs),
+    ADDIU(IArgs),
 }
 
 impl std::fmt::Display for Instruction {
@@ -45,6 +48,9 @@ impl std::fmt::Display for Instruction {
             &Instruction::SYSCALL => write!(f, "SYSCALL"),
             &Instruction::ADD(ref a) => write!(f, "ADD {}, {}, {}", a.rd, a.rs, a.rt),
             &Instruction::ADDI(ref a) => write!(f, "ADDI {}, {}, {}", a.rt, a.rs, a.imm),
+            &Instruction::LUI(ref a) => write!(f, "LUI {}, {}", a.rt, a.imm),
+            &Instruction::ORI(ref a) => write!(f, "ORI {}, {}, {}", a.rt, a.rs, a.imm),
+            &Instruction::ADDIU(ref a) => write!(f, "ADDIU {}, {}, {}", a.rt, a.rs, a.imm),
         }
     }
 }
@@ -87,7 +93,10 @@ fn decode_i_instr(word: u32) -> Result<Instruction> {
     let opcode = (word & (63 << 26)) >> 26;
 
     match opcode {
-        0x8 => Ok(Instruction::ADDI(IArgs { rs, rt, imm })),
+        0x08 => Ok(Instruction::ADDI(IArgs { rs, rt, imm })),
+        0x0F => Ok(Instruction::LUI(IArgs { rs, rt, imm, })),
+        0x0D => Ok(Instruction::ORI(IArgs { rs, rt, imm, })),
+        0x09 => Ok(Instruction::ADDIU(IArgs { rs, rt, imm })),
         _ => Err(eyre!("Unknown I instruction: {:#x}", opcode)),
     }
 }

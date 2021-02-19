@@ -113,7 +113,7 @@ impl Cpu {
                     a => println!("syscall: unknown syscall {}", a)
                 };
             },
-            //a => Err(eyre!("Instruction {} not implemented yet!", a)),
+            a => return Err(eyre!("Instruction {} not implemented yet!", a)),
         }
 
         self.pc += 4;
