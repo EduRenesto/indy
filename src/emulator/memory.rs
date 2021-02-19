@@ -40,6 +40,18 @@ impl Memory {
         Ok(())
     }
 
+    /// Faz uma leitura não alinhada na memória. Isto é, retorna apenas um byte
+    /// de uma word.
+    pub fn peek_unaligned(&self, addr: u32) -> Result<u8> {
+        let base = addr & 0xFFFFFFFC; // alinha pro lowest multiplo de 4
+        let offset = addr - base; // offset agora armazena qual é o byte desejado
+
+        let word = self.peek(base)?;
+
+        //Ok(((word & (0xFF << offset )) >> offset) as u8)
+        Ok(word.to_le_bytes()[offset as usize])
+    }
+
     /// Carrega um bloco de dados na memória a partir do endereço especificado.
     pub fn load_slice_into_addr(&mut self, base: u32, data: &[u32]) -> Result<()> {
         check_alignment!(base);

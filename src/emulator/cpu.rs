@@ -95,10 +95,19 @@ impl Cpu {
             Instruction::SYSCALL => {
                 match self.regs[Register(2)] {
                     1 => {
-                        println!("syscall: {}", self.regs[Register(4)]);
+                        print!("syscall: {}", self.regs[Register(4)]);
                     },
                     4 => {
-                        println!("syscall: string at {:#x}", self.regs[Register(4)]);
+                        let mut addr = self.regs[Register(4)];
+                        println!("syscall: string at {:#x}", addr);
+
+                        let mut val = self.mem.peek_unaligned(addr)?;
+
+                        while val != 0 {
+                            print!("{}", val as char);
+                            addr += 1;
+                            val = self.mem.peek_unaligned(addr)?;
+                        }
                     },
                     5 => {
                         println!("syscall: TODO read integer");
@@ -108,11 +117,21 @@ impl Cpu {
                         println!("syscall: halted");
                     },
                     11 => {
-                        println!("syscall: {}", self.regs[Register(4)] as u8 as char);
+                        print!("syscall: {}", self.regs[Register(4)] as u8 as char);
                     },
                     a => println!("syscall: unknown syscall {}", a)
                 };
             },
+            Instruction::LUI(args) => {
+                let val = args.imm << (32 - 16);
+                self.regs[args.rt] = val;
+            },
+            Instruction::ORI(args) => {
+                self.regs[args.rt] = self.regs[args.rs] | args.imm;
+            },
+            Instruction::ADDIU(args) => {
+                self.regs[args.rt] = self.regs[args.rs].overflowing_add(args.imm).0;
+            }
             a => return Err(eyre!("Instruction {} not implemented yet!", a)),
         }
 
