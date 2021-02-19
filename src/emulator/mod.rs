@@ -15,6 +15,7 @@ impl std::fmt::Display for Register {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self.0 {
             0 => write!(f, "$zero"),
+            1 => write!(f, "$at"),
             2..=3 => write!(f, "$v{}", self.0 - 2),
             4..=7 => write!(f, "$a{}", self.0 - 4),
             8..=15 => write!(f, "$t{}", self.0 - 8),
