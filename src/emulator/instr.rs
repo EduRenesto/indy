@@ -42,6 +42,7 @@ pub enum Instruction {
     ADDIU(IArgs),
     ADDU(RArgs),
     BEQ(IArgs),
+    J(u32),
 }
 
 impl std::fmt::Display for Instruction {
@@ -55,6 +56,7 @@ impl std::fmt::Display for Instruction {
             &Instruction::ADDIU(ref a) => write!(f, "ADDIU {}, {}, {}", a.rt, a.rs, a.imm),
             &Instruction::ADDU(ref a) => write!(f, "ADDU {}, {}, {}", a.rd, a.rs, a.rt),
             &Instruction::BEQ(ref a) => write!(f, "BEQ {}, {}, {}", a.rs, a.rt, a.imm),
+            &Instruction::J(ref a) => write!(f, "J {:#x}", a),
         }
     }
 }
@@ -107,5 +109,7 @@ fn decode_i_instr(word: u32) -> Result<Instruction> {
     }
 }
 fn decode_j_instr(word: u32) -> Result<Instruction> {
-    Err(eyre!("J not implemented: {:#x}", word))
+    // 26 least significant bytes
+    let target = word & 0x3FFFFFF;
+    Ok(Instruction::J(target))
 }
