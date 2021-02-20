@@ -43,6 +43,7 @@ pub enum Instruction {
     ADDU(RArgs),
     BEQ(IArgs),
     J(u32),
+    BNE(IArgs),
 }
 
 impl std::fmt::Display for Instruction {
@@ -57,6 +58,7 @@ impl std::fmt::Display for Instruction {
             &Instruction::ADDU(ref a) => write!(f, "ADDU {}, {}, {}", a.rd, a.rs, a.rt),
             &Instruction::BEQ(ref a) => write!(f, "BEQ {}, {}, {}", a.rs, a.rt, a.imm),
             &Instruction::J(ref a) => write!(f, "J {:#x}", a),
+            &Instruction::BNE(ref a) => write!(f, "BNE {}, {}, {}", a.rs, a.rt, a.imm),
         }
     }
 }
@@ -105,6 +107,7 @@ fn decode_i_instr(word: u32) -> Result<Instruction> {
         0x0D => Ok(Instruction::ORI(IArgs { rs, rt, imm, })),
         0x09 => Ok(Instruction::ADDIU(IArgs { rs, rt, imm })),
         0x04 => Ok(Instruction::BEQ(IArgs { rs, rt, imm })),
+        0x05 => Ok(Instruction::BNE(IArgs { rs, rt, imm })),
         _ => Err(eyre!("Unknown I instruction: {:#x}", opcode)),
     }
 }
