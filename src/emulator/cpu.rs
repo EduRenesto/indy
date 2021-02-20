@@ -6,6 +6,8 @@ use super::Memory;
 
 use super::instr::sign_extend;
 
+use std::io::Write;
+
 use color_eyre::eyre::{Result, eyre};
 
 struct Registers([u32; 32]);
@@ -93,13 +95,15 @@ impl Cpu {
                 self.regs[args.rt] = self.regs[args.rs] + sign_extend(args.imm, 16);
             },
             Instruction::SYSCALL => {
+                //println!("debug: syscall");
+                //println!("{}", self.regs);
                 match self.regs[Register(2)] {
                     1 => {
-                        print!("syscall: {}", self.regs[Register(4)]);
+                        print!("{}", self.regs[Register(4)]);
                     },
                     4 => {
                         let mut addr = self.regs[Register(4)];
-                        println!("syscall: string at {:#x}", addr);
+                        //println!("syscall: string at {:#x}", addr);
 
                         let mut val = self.mem.peek_unaligned(addr)?;
 
@@ -110,17 +114,28 @@ impl Cpu {
                         }
                     },
                     5 => {
-                        println!("syscall: TODO read integer");
+                        let mut input = String::new();
+                        std::io::stdin().read_line(&mut input)?;
+
+                        let val = input.trim().parse::<u32>()?;
+
+                        self.regs[Register(2)] = val;
                     },
                     10 => {
                         self.halt = true;
                         println!("syscall: halted");
                     },
                     11 => {
-                        print!("syscall: {}", self.regs[Register(4)] as u8 as char);
+                        print!("{}", self.regs[Register(4)] as u8 as char);
                     },
                     a => println!("syscall: unknown syscall {}", a)
                 };
+                // zsh dentro do term-mode do emacs faz com que o stdout bugue (????)
+                // então temos que flushar o stdout quando termina a syscall.
+                //
+                // ...acho que é uma desculpa pra eu perder tempo configurando
+                // exwm e usar o alacritty direito!
+                std::io::stdout().flush()?;
             },
             Instruction::LUI(args) => {
                 let val = args.imm << (32 - 16);
