@@ -40,6 +40,7 @@ pub enum Instruction {
     LUI(IArgs),
     ORI(IArgs),
     ADDIU(IArgs),
+    ADDU(RArgs),
 }
 
 impl std::fmt::Display for Instruction {
@@ -51,6 +52,7 @@ impl std::fmt::Display for Instruction {
             &Instruction::LUI(ref a) => write!(f, "LUI {}, {}", a.rt, a.imm),
             &Instruction::ORI(ref a) => write!(f, "ORI {}, {}, {}", a.rt, a.rs, a.imm),
             &Instruction::ADDIU(ref a) => write!(f, "ADDIU {}, {}, {}", a.rt, a.rs, a.imm),
+            &Instruction::ADDU(ref a) => write!(f, "ADDU {}, {}, {}", a.rd, a.rs, a.rt),
         }
     }
 }
@@ -81,6 +83,7 @@ fn decode_r_instr(word: u32) -> Result<Instruction> {
     match funct {
         0x0C => Ok(Instruction::SYSCALL),
         0x20 => Ok(Instruction::ADD(RArgs { rd, rt, rs, shamt })),
+        0x21 => Ok(Instruction::ADDU(RArgs { rd, rt, rs, shamt })),
         _ => Err(eyre!("Unknown R instruction: {:#x}", funct)),
     }
 }
