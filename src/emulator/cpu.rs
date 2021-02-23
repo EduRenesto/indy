@@ -12,6 +12,10 @@ use color_eyre::eyre::{Result, eyre};
 
 struct Registers([u32; 32]);
 
+fn as_signed(val: u32) -> i32 {
+    i32::from_le_bytes(val.to_le_bytes())
+}
+
 impl std::ops::Index<Register> for Registers {
     type Output = u32;
 
@@ -64,14 +68,19 @@ pub struct Cpu {
 }
 
 impl Cpu {
-    pub fn new(start: u32) -> Cpu {
+    pub fn new(start: u32, sp: u32, gp: u32) -> Cpu {
         // TODO set gp, sp
-        Cpu {
+        let mut cpu = Cpu {
             regs: Registers([0; 32]),
             mem: Memory::new(),
             pc: start,
             halt: false,
-        }
+        };
+
+        cpu.regs[Register(28)] = gp;
+        cpu.regs[Register(29)] = sp;
+
+        cpu
     }
 
     pub fn memory(&self) -> &Memory {
@@ -86,7 +95,7 @@ impl Cpu {
         let word = self.mem.peek(self.pc)?;
 
         let instr = Instruction::decode(*word)?;
-        //println!("{}", instr);
+        //println!("{:#010x}: {}", self.pc, instr);
         match instr {
             Instruction::ADD(args) => {
                 //self.regs[args.rd] = self.regs[args.rs] + self.regs[args.rt];
@@ -169,6 +178,22 @@ impl Cpu {
                 }
             },
             Instruction::J(addr) => {
+                let target = jump_addr(self.pc, addr);
+                //println!("jumping to {:#010x} which is {:#010x}", addr, target);
+                self.pc = target - 4;
+            },
+            Instruction::SLT(args) => {
+                self.regs[args.rd] = if as_signed(self.regs[args.rs]) < as_signed(self.regs[args.rt]) {
+                    1
+                } else {
+                    0
+                };
+            },
+            Instruction::JR(args) => {
+                self.pc = self.regs[args.rs];
+            },
+            Instruction::JAL(addr) => {
+                self.regs[Register(31)] = self.pc;
                 let target = jump_addr(self.pc, addr);
                 //println!("jumping to {:#010x} which is {:#010x}", addr, target);
                 self.pc = target - 4;
