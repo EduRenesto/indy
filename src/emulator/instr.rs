@@ -10,12 +10,32 @@ pub fn sign_extend(val: u32, init_size: u32) -> u32 {
     } else {
         let mut ret = val;
 
-        for i in (init_size + 1)..32 {
+        for i in (init_size)..32 {
             ret |= 1 << i;
         }
 
         ret
     }
+}
+
+pub fn sign_extend_cast(val: u32, init_size: u32) -> i32 {
+    i32::from_le_bytes(sign_extend(val, init_size).to_le_bytes())
+}
+
+/// (4) BranchAddr no greencard
+pub fn branch_addr(val: u32) -> i32 {
+    let fifteenth_bit = (val & (1 << 15)) >> 15;
+    let mut val = 0 | (val << 2);
+    for i in 17..=31 {
+        val |= fifteenth_bit << i;
+    }
+    i32::from_le_bytes(val.to_le_bytes())
+}
+
+/// (5) JumpAddr no greencard
+pub fn jump_addr(pc: u32, val: u32) -> u32 {
+    let high_pc = (pc + 4) & (0xF0000000);
+    (high_pc) | (val << 2)
 }
 
 pub struct RArgs {
@@ -51,7 +71,7 @@ impl std::fmt::Display for Instruction {
         match self {
             &Instruction::SYSCALL => write!(f, "SYSCALL"),
             &Instruction::ADD(ref a) => write!(f, "ADD {}, {}, {}", a.rd, a.rs, a.rt),
-            &Instruction::ADDI(ref a) => write!(f, "ADDI {}, {}, {}", a.rt, a.rs, a.imm),
+            &Instruction::ADDI(ref a) => write!(f, "ADDI {}, {}, {}", a.rt, a.rs, sign_extend_cast(a.imm, 16)),
             &Instruction::LUI(ref a) => write!(f, "LUI {}, {}", a.rt, a.imm),
             &Instruction::ORI(ref a) => write!(f, "ORI {}, {}, {}", a.rt, a.rs, a.imm),
             &Instruction::ADDIU(ref a) => write!(f, "ADDIU {}, {}, {}", a.rt, a.rs, a.imm),

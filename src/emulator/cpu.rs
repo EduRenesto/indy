@@ -4,7 +4,7 @@ use super::Instruction;
 use super::Register;
 use super::Memory;
 
-use super::instr::sign_extend;
+use super::instr::{ sign_extend, branch_addr, jump_addr };
 
 use std::io::Write;
 
@@ -89,10 +89,12 @@ impl Cpu {
         //println!("{}", instr);
         match instr {
             Instruction::ADD(args) => {
-                self.regs[args.rd] = self.regs[args.rs] + self.regs[args.rt];
+                //self.regs[args.rd] = self.regs[args.rs] + self.regs[args.rt];
+                self.regs[args.rd] = self.regs[args.rs].overflowing_add(self.regs[args.rt]).0;
             },
             Instruction::ADDI(args) => {
-                self.regs[args.rt] = self.regs[args.rs] + sign_extend(args.imm, 16);
+                //self.regs[args.rt] = self.regs[args.rs] + sign_extend(args.imm, 16);
+                self.regs[args.rt] = self.regs[args.rs].overflowing_add(sign_extend(args.imm, 16)).0;
             },
             Instruction::SYSCALL => {
                 //println!("debug: syscall");
@@ -146,7 +148,31 @@ impl Cpu {
             },
             Instruction::ADDIU(args) => {
                 self.regs[args.rt] = self.regs[args.rs].overflowing_add(args.imm).0;
-            }
+            },
+            Instruction::ADDU(args) => {
+                self.regs[args.rd] = self.regs[args.rs] + self.regs[args.rt];
+            },
+            Instruction::BEQ(args) => {
+                if self.regs[args.rs] == self.regs[args.rt] {
+                    let target = branch_addr(args.imm);
+                    //println!("jump to {:#x}, pc is {:#x}", target, self.pc);
+                    //println!("target % 4 = {}", target % 4);
+                    self.pc = (self.pc as i32 + target) as u32;
+                }
+            },
+            Instruction::BNE(args) => {
+                //println!("jump to {}, pc is {}", args.imm, self.pc);
+                if self.regs[args.rs] != self.regs[args.rt] {
+                    let target = branch_addr(args.imm);
+                    //println!("jump to {:#x}, pc is {:#x}", target, self.pc);
+                    self.pc = (self.pc as i32 + target) as u32;
+                }
+            },
+            Instruction::J(addr) => {
+                let target = jump_addr(self.pc, addr);
+                //println!("jumping to {:#010x} which is {:#010x}", addr, target);
+                self.pc = target - 4;
+            },
             a => return Err(eyre!("Instruction {} not implemented yet!", a)),
         }
 

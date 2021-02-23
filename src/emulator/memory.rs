@@ -5,7 +5,7 @@ use std::collections::HashMap;
 macro_rules! check_alignment {
     ($addr:ident) => {
         if $addr % 4 != 0 {
-            return Err(eyre!("Acesso a endereço não alinhado! {:x}", $addr));
+            return Err(eyre!("Acesso a endereço não alinhado! {:#x}", $addr));
         }
     }
 }
@@ -63,5 +63,12 @@ impl Memory {
         }
 
         Ok(())
+    }
+
+    pub fn dump(&self) {
+        for (addr, word) in &self.memory {
+            if word == &0 { continue };
+            println!("{:#010x}: {:#010x}", addr, word);
+        }
     }
 }

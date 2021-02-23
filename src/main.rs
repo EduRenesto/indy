@@ -73,9 +73,9 @@ fn main() -> Result<()> {
     } else if let Some(matches) = matches.subcommand_matches("run") {
         let executable = Executable::from_naked_files(matches.value_of("file").unwrap())?;
 
-        let mut cpu = Cpu::new(0x004000000);
+        let mut cpu = Cpu::new(0x00400000);
 
-        cpu.memory_mut().load_slice_into_addr(0x004000000, &executable.text[..])?;
+        cpu.memory_mut().load_slice_into_addr(0x00400000, &executable.text[..])?;
         if let Some(ref data) = executable.data {
             cpu.memory_mut().load_slice_into_addr(0x10010000, &data[..])?;
         }
