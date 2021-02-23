@@ -66,6 +66,7 @@ pub enum Instruction {
     BNE(IArgs),
     SLT(RArgs),
     JR(RArgs),
+    JAL(u32)
 }
 
 impl std::fmt::Display for Instruction {
@@ -79,10 +80,11 @@ impl std::fmt::Display for Instruction {
             &Instruction::ADDIU(ref a) => write!(f, "ADDIU {}, {}, {}", a.rt, a.rs, a.imm),
             &Instruction::ADDU(ref a) => write!(f, "ADDU {}, {}, {}", a.rd, a.rs, a.rt),
             &Instruction::BEQ(ref a) => write!(f, "BEQ {}, {}, {}", a.rs, a.rt, a.imm),
-            &Instruction::J(ref a) => write!(f, "J {:#x}", a),
+            &Instruction::J(ref a) => write!(f, "J {:#x} # {:#x}", a, a * 4),
             &Instruction::BNE(ref a) => write!(f, "BNE {}, {}, {}", a.rs, a.rt, a.imm),
             &Instruction::SLT(ref a) => write!(f, "SLT {}, {}, {}", a.rd, a.rs, a.rt),
             &Instruction::JR(ref a) => write!(f, "JR {}", a.rs),
+            &Instruction::JAL(ref a) => write!(f, "JAL {:#x} # {:#x}", a, a * 4),
         }
     }
 }
@@ -138,7 +140,13 @@ fn decode_i_instr(word: u32) -> Result<Instruction> {
     }
 }
 fn decode_j_instr(word: u32) -> Result<Instruction> {
+    let opcode = (word & (63 << 26)) >> 26;
+
     // 26 least significant bytes
     let target = word & 0x3FFFFFF;
-    Ok(Instruction::J(target))
+    match opcode {
+        0x02 => Ok(Instruction::J(target)),
+        0x03 => Ok(Instruction::JAL(target)),
+        _ => Err(eyre!("Unknown J instruction: {:#x}", opcode))
+    }
 }
