@@ -64,6 +64,8 @@ pub enum Instruction {
     BEQ(IArgs),
     J(u32),
     BNE(IArgs),
+    SLT(RArgs),
+    JR(RArgs),
 }
 
 impl std::fmt::Display for Instruction {
@@ -79,6 +81,8 @@ impl std::fmt::Display for Instruction {
             &Instruction::BEQ(ref a) => write!(f, "BEQ {}, {}, {}", a.rs, a.rt, a.imm),
             &Instruction::J(ref a) => write!(f, "J {:#x}", a),
             &Instruction::BNE(ref a) => write!(f, "BNE {}, {}, {}", a.rs, a.rt, a.imm),
+            &Instruction::SLT(ref a) => write!(f, "SLT {}, {}, {}", a.rd, a.rs, a.rt),
+            &Instruction::JR(ref a) => write!(f, "JR {}", a.rs),
         }
     }
 }
@@ -110,6 +114,8 @@ fn decode_r_instr(word: u32) -> Result<Instruction> {
         0x0C => Ok(Instruction::SYSCALL),
         0x20 => Ok(Instruction::ADD(RArgs { rd, rt, rs, shamt })),
         0x21 => Ok(Instruction::ADDU(RArgs { rd, rt, rs, shamt })),
+        0x2A => Ok(Instruction::SLT(RArgs { rd, rt, rs, shamt })),
+        0x08 => Ok(Instruction::JR(RArgs { rd, rt, rs, shamt })),
         _ => Err(eyre!("Unknown R instruction: {:#x}", funct)),
     }
 }
