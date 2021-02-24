@@ -198,6 +198,15 @@ impl Cpu {
                 //println!("jumping to {:#010x} which is {:#010x}", addr, target);
                 self.pc = target - 4;
             },
+            Instruction::SLL(args) => {
+                self.regs[args.rd] = self.regs[args.rt] << args.shamt;
+            },
+            Instruction::SRL(args) => {
+                self.regs[args.rd] = self.regs[args.rt] >> args.shamt;
+            },
+            Instruction::ANDI(args) => {
+                self.regs[args.rt] = self.regs[args.rs] & args.imm;
+            }
             a => return Err(eyre!("Instruction {} not implemented yet!", a)),
         }
 
