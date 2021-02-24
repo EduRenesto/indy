@@ -83,6 +83,7 @@ impl Cpu {
         cpu
     }
 
+    #[allow(dead_code)]
     pub fn memory(&self) -> &Memory {
         &self.mem
     }
@@ -91,6 +92,7 @@ impl Cpu {
         &mut self.mem
     }
 
+    #[allow(unreachable_patterns)]
     pub fn cycle(&mut self) -> Result<()> {
         let word = self.mem.peek(self.pc)?;
 

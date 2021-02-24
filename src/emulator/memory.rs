@@ -65,6 +65,7 @@ impl Memory {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn dump(&self) {
         for (addr, word) in &self.memory {
             if word == &0 {

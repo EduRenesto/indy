@@ -52,7 +52,6 @@ pub struct IArgs {
 }
 
 /// TODO melhorar docs
-#[allow(snake_case)]
 pub enum Instruction {
     ADD(RArgs),
     ADDI(IArgs),

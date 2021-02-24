@@ -7,7 +7,7 @@ use clap::{crate_version, App, Arg, SubCommand};
 use color_eyre::eyre::Result;
 
 use std::io::Read;
-use std::{error::Error, fs::File};
+use std::fs::File;
 
 pub(crate) mod emulator;
 
