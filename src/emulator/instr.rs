@@ -70,6 +70,8 @@ pub enum Instruction {
     SLL(RArgs),
     SRL(RArgs),
     ANDI(IArgs),
+    LW(IArgs),
+    SW(IArgs),
 }
 
 impl std::fmt::Display for Instruction {
@@ -91,6 +93,8 @@ impl std::fmt::Display for Instruction {
             &Instruction::SLL(ref a) => write!(f, "SLL {}, {}, {}", a.rd, a.rs, a.rt),
             &Instruction::SRL(ref a) => write!(f, "SRL {}, {}, {}", a.rd, a.rs, a.rt),
             &Instruction::ANDI(ref a) => write!(f, "ANDI {}, {}, {}", a.rt, a.rs, a.imm),
+            &Instruction::LW(ref a) => write!(f, "LW {}, {}, {}", a.rt, a.rs, a.imm),
+            &Instruction::SW(ref a) => write!(f, "SW {}, {}, {}", a.rt, a.rs, a.imm),
         }
     }
 }
@@ -145,6 +149,8 @@ fn decode_i_instr(word: u32) -> Result<Instruction> {
         0x04 => Ok(Instruction::BEQ(IArgs { rs, rt, imm })),
         0x05 => Ok(Instruction::BNE(IArgs { rs, rt, imm })),
         0x0C => Ok(Instruction::ANDI(IArgs { rs, rt, imm })),
+        0x23 => Ok(Instruction::LW(IArgs { rs, rt, imm })),
+        0x2B => Ok(Instruction::SW(IArgs { rs, rt, imm })),
         _ => Err(eyre!("Unknown I instruction: {:#x}", opcode)),
     }
 }
