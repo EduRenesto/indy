@@ -66,7 +66,10 @@ pub enum Instruction {
     BNE(IArgs),
     SLT(RArgs),
     JR(RArgs),
-    JAL(u32)
+    JAL(u32),
+    SLL(RArgs),
+    SRL(RArgs),
+    ANDI(IArgs),
 }
 
 impl std::fmt::Display for Instruction {
@@ -85,6 +88,9 @@ impl std::fmt::Display for Instruction {
             &Instruction::SLT(ref a) => write!(f, "SLT {}, {}, {}", a.rd, a.rs, a.rt),
             &Instruction::JR(ref a) => write!(f, "JR {}", a.rs),
             &Instruction::JAL(ref a) => write!(f, "JAL {:#x} # {:#x}", a, a * 4),
+            &Instruction::SLL(ref a) => write!(f, "SLL {}, {}, {}", a.rd, a.rs, a.rt),
+            &Instruction::SRL(ref a) => write!(f, "SRL {}, {}, {}", a.rd, a.rs, a.rt),
+            &Instruction::ANDI(ref a) => write!(f, "ANDI {}, {}, {}", a.rt, a.rs, a.imm),
         }
     }
 }
@@ -118,6 +124,8 @@ fn decode_r_instr(word: u32) -> Result<Instruction> {
         0x21 => Ok(Instruction::ADDU(RArgs { rd, rt, rs, shamt })),
         0x2A => Ok(Instruction::SLT(RArgs { rd, rt, rs, shamt })),
         0x08 => Ok(Instruction::JR(RArgs { rd, rt, rs, shamt })),
+        0x00 => Ok(Instruction::SLL(RArgs { rd, rt, rs, shamt })),
+        0x02 => Ok(Instruction::SRL(RArgs { rd, rt, rs, shamt })),
         _ => Err(eyre!("Unknown R instruction: {:#x}", funct)),
     }
 }
@@ -136,6 +144,7 @@ fn decode_i_instr(word: u32) -> Result<Instruction> {
         0x09 => Ok(Instruction::ADDIU(IArgs { rs, rt, imm })),
         0x04 => Ok(Instruction::BEQ(IArgs { rs, rt, imm })),
         0x05 => Ok(Instruction::BNE(IArgs { rs, rt, imm })),
+        0x0C => Ok(Instruction::ANDI(IArgs { rs, rt, imm })),
         _ => Err(eyre!("Unknown I instruction: {:#x}", opcode)),
     }
 }
