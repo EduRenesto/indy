@@ -9,6 +9,7 @@ pub use cpu::Cpu;
 pub use instr::{Instruction, RArgs, IArgs};
 pub use memory::Memory;
 
+#[derive(Copy, Clone)]
 pub struct Register(u32);
 
 impl std::fmt::Display for Register {

@@ -4,7 +4,7 @@ use super::Instruction;
 use super::Register;
 use super::Memory;
 
-use super::instr::{ sign_extend, branch_addr, jump_addr };
+use super::instr::{ sign_extend, sign_extend_cast, branch_addr, jump_addr };
 
 use std::io::Write;
 
@@ -156,7 +156,8 @@ impl Cpu {
                 self.regs[args.rt] = self.regs[args.rs] | args.imm;
             },
             Instruction::ADDIU(args) => {
-                self.regs[args.rt] = self.regs[args.rs].overflowing_add(args.imm).0;
+                //self.regs[args.rt] = self.regs[args.rs].overflowing_add(args.imm).0;
+                self.regs[args.rt] = self.regs[args.rs].overflowing_add(sign_extend(args.imm, 16)).0;
             },
             Instruction::ADDU(args) => {
                 self.regs[args.rd] = self.regs[args.rs] + self.regs[args.rt];
@@ -183,6 +184,7 @@ impl Cpu {
                 self.pc = target - 4;
             },
             Instruction::SLT(args) => {
+                //println!("SLT: {} < {}?", as_signed(self.regs[args.rs]), as_signed(self.regs[args.rt]));
                 self.regs[args.rd] = if as_signed(self.regs[args.rs]) < as_signed(self.regs[args.rt]) {
                     1
                 } else {
@@ -206,7 +208,15 @@ impl Cpu {
             },
             Instruction::ANDI(args) => {
                 self.regs[args.rt] = self.regs[args.rs] & args.imm;
-            }
+            },
+            Instruction::LW(args) => {
+                let addr = self.regs[args.rs] as i32 + sign_extend_cast(args.imm, 16);
+                self.regs[args.rt] = *self.mem.peek(addr as u32)?;
+            },
+            Instruction::SW(args) => {
+                let addr = self.regs[args.rs] as i32 + sign_extend_cast(args.imm, 16);
+                self.mem.poke(addr as u32, self.regs[args.rt])?;
+            },
             a => return Err(eyre!("Instruction {} not implemented yet!", a)),
         }
 
