@@ -1,4 +1,4 @@
-use color_eyre::eyre::{Result, eyre};
+use color_eyre::eyre::{eyre, Result};
 
 use std::collections::HashMap;
 
@@ -7,7 +7,7 @@ macro_rules! check_alignment {
         if $addr % 4 != 0 {
             return Err(eyre!("Acesso a endereço não alinhado! {:#x}", $addr));
         }
-    }
+    };
 }
 
 /// Como sugerido, a memória é só um HashMap onde as chaves são os endereços.
@@ -19,7 +19,7 @@ impl Memory {
     /// Cria um novo objeto Memory, com capacidade pré-alocada de 1024 words.
     pub fn new() -> Memory {
         Memory {
-            memory: HashMap::with_capacity(1024)
+            memory: HashMap::with_capacity(1024),
         }
     }
 
@@ -67,7 +67,9 @@ impl Memory {
 
     pub fn dump(&self) {
         for (addr, word) in &self.memory {
-            if word == &0 { continue };
+            if word == &0 {
+                continue;
+            };
             println!("{:#010x}: {:#010x}", addr, word);
         }
     }

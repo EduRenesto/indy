@@ -11,8 +11,8 @@ use std::{error::Error, fs::File};
 
 pub(crate) mod emulator;
 
-use emulator::Instruction;
 use emulator::Cpu;
+use emulator::Instruction;
 
 fn u32_vec_from_file(mut file: File) -> Vec<u32> {
     let mut data = Vec::new();
@@ -75,9 +75,11 @@ fn main() -> Result<()> {
 
         let mut cpu = Cpu::new(0x00400000, 0x7FFFEFFC, 0x10008000);
 
-        cpu.memory_mut().load_slice_into_addr(0x00400000, &executable.text[..])?;
+        cpu.memory_mut()
+            .load_slice_into_addr(0x00400000, &executable.text[..])?;
         if let Some(ref data) = executable.data {
-            cpu.memory_mut().load_slice_into_addr(0x10010000, &data[..])?;
+            cpu.memory_mut()
+                .load_slice_into_addr(0x10010000, &data[..])?;
         }
 
         cpu.run()?;

@@ -6,7 +6,7 @@ pub(crate) mod memory;
 
 // Re-exports pra ficar melhor de usar ao longo do código
 pub use cpu::Cpu;
-pub use instr::{Instruction, RArgs, IArgs};
+pub use instr::{IArgs, Instruction, RArgs};
 pub use memory::Memory;
 
 #[derive(Copy, Clone)]

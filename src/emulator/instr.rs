@@ -1,4 +1,4 @@
-use color_eyre::eyre::{Result, eyre};
+use color_eyre::eyre::{eyre, Result};
 
 use super::Register;
 
@@ -79,22 +79,62 @@ impl std::fmt::Display for Instruction {
         match self {
             &Instruction::SYSCALL => write!(f, "SYSCALL"),
             &Instruction::ADD(ref a) => write!(f, "ADD {}, {}, {}", a.rd, a.rs, a.rt),
-            &Instruction::ADDI(ref a) => write!(f, "ADDI {}, {}, {}", a.rt, a.rs, sign_extend_cast(a.imm, 16)),
+            &Instruction::ADDI(ref a) => write!(
+                f,
+                "ADDI {}, {}, {}",
+                a.rt,
+                a.rs,
+                sign_extend_cast(a.imm, 16)
+            ),
             &Instruction::LUI(ref a) => write!(f, "LUI {}, {}", a.rt, a.imm),
             &Instruction::ORI(ref a) => write!(f, "ORI {}, {}, {}", a.rt, a.rs, a.imm),
-            &Instruction::ADDIU(ref a) => write!(f, "ADDIU {}, {}, {}", a.rt, a.rs, sign_extend_cast(a.imm, 16)),
+            &Instruction::ADDIU(ref a) => write!(
+                f,
+                "ADDIU {}, {}, {}",
+                a.rt,
+                a.rs,
+                sign_extend_cast(a.imm, 16)
+            ),
             &Instruction::ADDU(ref a) => write!(f, "ADDU {}, {}, {}", a.rd, a.rs, a.rt),
-            &Instruction::BEQ(ref a) => write!(f, "BEQ {}, {}, {}", a.rs, a.rt, sign_extend_cast(a.imm, 16)),
+            &Instruction::BEQ(ref a) => {
+                write!(f, "BEQ {}, {}, {}", a.rs, a.rt, sign_extend_cast(a.imm, 16))
+            }
             &Instruction::J(ref a) => write!(f, "J {:#x} # {:#x}", a, a * 4),
-            &Instruction::BNE(ref a) => write!(f, "BNE {}, {}, {}", a.rs, a.rt, sign_extend_cast(a.imm, 16)),
+            &Instruction::BNE(ref a) => {
+                write!(f, "BNE {}, {}, {}", a.rs, a.rt, sign_extend_cast(a.imm, 16))
+            }
             &Instruction::SLT(ref a) => write!(f, "SLT {}, {}, {}", a.rd, a.rs, a.rt),
             &Instruction::JR(ref a) => write!(f, "JR {}", a.rs),
             &Instruction::JAL(ref a) => write!(f, "JAL {:#x} # {:#x}", a, a * 4),
-            &Instruction::SLL(ref a) => write!(f, "SLL {}, {}, {}", a.rd, a.rt, sign_extend_cast(a.shamt, 5)),
-            &Instruction::SRL(ref a) => write!(f, "SRL {}, {}, {}", a.rd, a.rt, sign_extend_cast(a.shamt, 5)),
+            &Instruction::SLL(ref a) => write!(
+                f,
+                "SLL {}, {}, {}",
+                a.rd,
+                a.rt,
+                sign_extend_cast(a.shamt, 5)
+            ),
+            &Instruction::SRL(ref a) => write!(
+                f,
+                "SRL {}, {}, {}",
+                a.rd,
+                a.rt,
+                sign_extend_cast(a.shamt, 5)
+            ),
             &Instruction::ANDI(ref a) => write!(f, "ANDI {}, {}, {}", a.rt, a.rs, a.imm),
-            &Instruction::LW(ref a) => write!(f, "LW {}, {:#x}({})", a.rt, sign_extend_cast(a.imm, 16), a.rs),
-            &Instruction::SW(ref a) => write!(f, "SW {}, {:#x}({})", a.rt, sign_extend_cast(a.imm, 16), a.rs),
+            &Instruction::LW(ref a) => write!(
+                f,
+                "LW {}, {:#x}({})",
+                a.rt,
+                sign_extend_cast(a.imm, 16),
+                a.rs
+            ),
+            &Instruction::SW(ref a) => write!(
+                f,
+                "SW {}, {:#x}({})",
+                a.rt,
+                sign_extend_cast(a.imm, 16),
+                a.rs
+            ),
         }
     }
 }
@@ -143,8 +183,8 @@ fn decode_i_instr(word: u32) -> Result<Instruction> {
 
     match opcode {
         0x08 => Ok(Instruction::ADDI(IArgs { rs, rt, imm })),
-        0x0F => Ok(Instruction::LUI(IArgs { rs, rt, imm, })),
-        0x0D => Ok(Instruction::ORI(IArgs { rs, rt, imm, })),
+        0x0F => Ok(Instruction::LUI(IArgs { rs, rt, imm })),
+        0x0D => Ok(Instruction::ORI(IArgs { rs, rt, imm })),
         0x09 => Ok(Instruction::ADDIU(IArgs { rs, rt, imm })),
         0x04 => Ok(Instruction::BEQ(IArgs { rs, rt, imm })),
         0x05 => Ok(Instruction::BNE(IArgs { rs, rt, imm })),
@@ -162,6 +202,6 @@ fn decode_j_instr(word: u32) -> Result<Instruction> {
     match opcode {
         0x02 => Ok(Instruction::J(target)),
         0x03 => Ok(Instruction::JAL(target)),
-        _ => Err(eyre!("Unknown J instruction: {:#x}", opcode))
+        _ => Err(eyre!("Unknown J instruction: {:#x}", opcode)),
     }
 }
