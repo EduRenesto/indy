@@ -6,8 +6,8 @@
 use clap::{crate_version, App, Arg, SubCommand};
 use color_eyre::eyre::Result;
 
-use std::io::Read;
 use std::fs::File;
+use std::io::Read;
 
 pub(crate) mod emulator;
 
@@ -58,6 +58,14 @@ fn main() -> Result<()> {
         .subcommand(
             SubCommand::with_name("run")
                 .about("Carrega o binário e o executa")
+                .arg(
+                    Arg::with_name("entry")
+                        .long("entry")
+                        .short("e")
+                        .required(false)
+                        .default_value("0x00400000")
+                        .help("Endereço da primeira instrução"),
+                )
                 .arg(Arg::with_name("file").index(1).required(true)),
         )
         .get_matches();
@@ -71,9 +79,11 @@ fn main() -> Result<()> {
 
         Ok(())
     } else if let Some(matches) = matches.subcommand_matches("run") {
+        let entry = u32::from_str_radix(&matches.value_of("entry").unwrap()[2..], 16)?;
         let executable = Executable::from_naked_files(matches.value_of("file").unwrap())?;
 
-        let mut cpu = Cpu::new(0x00400000, 0x7FFFEFFC, 0x10008000);
+        //let mut cpu = Cpu::new(0x00400000, 0x7FFFEFFC, 0x10008000);
+        let mut cpu = Cpu::new(entry, 0x7FFFEFFC, 0x10008000);
 
         cpu.memory_mut()
             .load_slice_into_addr(0x00400000, &executable.text[..])?;
