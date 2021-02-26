@@ -224,6 +224,9 @@ impl Cpu {
                 let addr = self.regs[args.rs] as i32 + sign_extend_cast(args.imm, 16);
                 self.mem.poke(addr as u32, self.regs[args.rt])?;
             }
+            Instruction::OR(args) => {
+                self.regs[args.rd] = self.regs[args.rs] | self.regs[args.rt];
+            }
             a => return Err(eyre!("Instruction {} not implemented yet!", a)),
         }
 

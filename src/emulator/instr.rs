@@ -71,6 +71,7 @@ pub enum Instruction {
     ANDI(IArgs),
     LW(IArgs),
     SW(IArgs),
+    OR(RArgs),
 }
 
 impl std::fmt::Display for Instruction {
@@ -134,6 +135,7 @@ impl std::fmt::Display for Instruction {
                 sign_extend_cast(a.imm, 16),
                 a.rs
             ),
+            &Instruction::OR(ref a) => write!(f, "OR {}, {}, {}", a.rd, a.rs, a.rt),
         }
     }
 }
@@ -169,6 +171,7 @@ fn decode_r_instr(word: u32) -> Result<Instruction> {
         0x08 => Ok(Instruction::JR(RArgs { rd, rt, rs, shamt })),
         0x00 => Ok(Instruction::SLL(RArgs { rd, rt, rs, shamt })),
         0x02 => Ok(Instruction::SRL(RArgs { rd, rt, rs, shamt })),
+        0x25 => Ok(Instruction::OR(RArgs { rd, rt, rs, shamt })),
         _ => Err(eyre!("Unknown R instruction: {:#x}", funct)),
     }
 }
