@@ -5,6 +5,7 @@
 
 use clap::{crate_version, App, Arg, SubCommand};
 use color_eyre::eyre::Result;
+use goblin::elf::Elf;
 
 use std::fs::File;
 use std::io::Read;
@@ -68,6 +69,11 @@ fn main() -> Result<()> {
                 )
                 .arg(Arg::with_name("file").index(1).required(true)),
         )
+        .subcommand(
+            SubCommand::with_name("runelf")
+                .about("Carrega um arquivo ELF e o executa (bonus!)")
+                .arg( Arg::with_name("file").index(1).required(true))
+        )
         .get_matches();
 
     if let Some(matches) = matches.subcommand_matches("decode") {
@@ -90,6 +96,38 @@ fn main() -> Result<()> {
         if let Some(ref data) = executable.data {
             cpu.memory_mut()
                 .load_slice_into_addr(0x10010000, &data[..])?;
+        }
+
+        cpu.run()?;
+
+        Ok(())
+    } else if let Some(matches) = matches.subcommand_matches("runelf") {
+        let mut file = File::open(matches.value_of("file").unwrap())?;
+        let mut file_bytes = Vec::new();
+        file.read_to_end(&mut file_bytes)?;
+
+        let elf = Elf::parse(&file_bytes[..])?;
+
+        let mut cpu = Cpu::new(elf.entry as u32, 0x7FFFEFFC, 0x10008000);
+
+        for section in elf.program_headers {
+            if section.p_type == goblin::elf::program_header::PT_LOAD {
+                println!("elf: loading {} bytes to {:#010x}...", section.p_memsz, section.p_paddr);
+                let offset = section.p_offset as usize;
+                let size = section.p_filesz as usize;
+
+                //let mut section_bytes = Vec::with_capacity(size);
+                //section_bytes.copy_from_slice(&file_bytes[offset..offset + size]);
+                let section_bytes: Vec<u32> = file_bytes[offset..offset + size].chunks(4)
+                    .map(|b| {
+                        let mut owned_b = [0u8; 4];
+                        owned_b.copy_from_slice(b);
+                        u32::from_le_bytes(owned_b)
+                    })
+                .collect();
+
+                cpu.memory_mut().load_slice_into_addr(section.p_paddr as u32, &section_bytes[..])?;
+            }
         }
 
         cpu.run()?;

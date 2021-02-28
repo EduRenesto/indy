@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 clap = "2.33"
 color-eyre = "0.5"
+goblin = { features = ["std", "elf32"], version = "0.3" }
