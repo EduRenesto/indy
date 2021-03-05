@@ -12,7 +12,6 @@ void print_str(const char *str) {
         : "$a0", "$v0");
 }
 
-void finish() __attribute__ ((naked));
 void finish() {
     asm volatile("addi $v0, $zero, 10" ::: "$v0");
     asm volatile("syscall");
