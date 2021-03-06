@@ -30,3 +30,9 @@ impl std::fmt::Display for Register {
         }
     }
 }
+
+mod test_instr {
+    use minips_macros::instr_from_yaml;
+
+    instr_from_yaml!("instructions.yml");
+}
