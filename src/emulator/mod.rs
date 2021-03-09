@@ -31,10 +31,10 @@ impl std::fmt::Display for Register {
     }
 }
 
-mod test_instr {
+mod autogen {
     use minips_macros::instr_from_yaml;
 
     instr_from_yaml!("instructions.yml");
 }
 
-pub use test_instr::*;
+pub use autogen::*;
