@@ -5,6 +5,7 @@ use crate::instruction::*;
 use quote::quote;
 use proc_macro2::{ Span, Ident, TokenStream };
 
+/// Gera um `match pattern` para uma instrução do tipo R.
 fn generate_r_parse_case((name, instr): (&String, &RInstruction)) -> TokenStream {
     let ename = name.to_uppercase();
     let ename_ident = Ident::new(&ename, Span::call_site());
@@ -17,6 +18,8 @@ fn generate_r_parse_case((name, instr): (&String, &RInstruction)) -> TokenStream
 
     code.into()
 }
+
+/// Gera um `match pattern` para uma instrução do tipo I.
 fn generate_i_parse_case((name, instr): (&String, &IInstruction)) -> TokenStream {
     let ename = name.to_uppercase();
     let ename_ident = Ident::new(&ename, Span::call_site());
@@ -28,6 +31,8 @@ fn generate_i_parse_case((name, instr): (&String, &IInstruction)) -> TokenStream
 
     code.into()
 }
+
+/// Gera um `match pattern` para uma instrução do tipo J.
 fn generate_j_parse_case((name, instr): (&String, &JInstruction)) -> TokenStream {
     let ename = name.to_uppercase();
     let ename_ident = Ident::new(&ename, Span::call_site());
@@ -40,6 +45,7 @@ fn generate_j_parse_case((name, instr): (&String, &JInstruction)) -> TokenStream
     code.into()
 }
 
+/// Gera a função que faz o parsing de uma instrução do tipo R.
 fn generate_r_parse(instrs: &HashMap<String, RInstruction>) -> TokenStream {
     let cases = instrs
         .iter()
@@ -47,6 +53,7 @@ fn generate_r_parse(instrs: &HashMap<String, RInstruction>) -> TokenStream {
         .collect::<Vec<_>>();
 
     let code = quote!{
+        /// Faz o parse de uma instrução do tipo R.
         fn decode_r_instr(word: u32) -> Result<Instruction> {
             let funct = word & 63;
             let shamt = (word & (31 << 6)) >> 6;
@@ -68,6 +75,7 @@ fn generate_r_parse(instrs: &HashMap<String, RInstruction>) -> TokenStream {
     code
 }
 
+/// Gera a função que faz o parsing de uma instrução do tipo I.
 fn generate_i_parse(instrs: &HashMap<String, IInstruction>) -> TokenStream {
     let cases = instrs
         .iter()
@@ -75,6 +83,7 @@ fn generate_i_parse(instrs: &HashMap<String, IInstruction>) -> TokenStream {
         .collect::<Vec<_>>();
 
     let code = quote!{
+        /// Faz o parse de uma instrução do tipo I.
         fn decode_i_instr(word: u32) -> Result<Instruction> {
             let imm = word & 0xFFFF;
             let rt = Register((word & (31 << 16)) >> 16);
@@ -94,6 +103,7 @@ fn generate_i_parse(instrs: &HashMap<String, IInstruction>) -> TokenStream {
     code
 }
 
+/// Gera a função que faz o parsing de uma instrução do tipo J.
 fn generate_j_parse(instrs: &HashMap<String, JInstruction>) -> TokenStream {
     let cases = instrs
         .iter()
@@ -101,6 +111,7 @@ fn generate_j_parse(instrs: &HashMap<String, JInstruction>) -> TokenStream {
         .collect::<Vec<_>>();
 
     let code = quote!{
+        /// Faz o parse de uma instrução do tipo J.
         fn decode_j_instr(word: u32) -> Result<Instruction> {
             let opcode = (word & (63 << 26)) >> 26;
 
@@ -117,6 +128,8 @@ fn generate_j_parse(instrs: &HashMap<String, JInstruction>) -> TokenStream {
     code
 }
 
+/// Gera a função que transforma uma palavra de 32 bits em uma variante da
+/// enum `Instruction`.
 pub(crate) fn generate_parse(instrs: &Instructions) -> TokenStream {
     let parse_r = generate_r_parse(&instrs.r);
     let parse_i = generate_i_parse(&instrs.i);
@@ -130,6 +143,8 @@ pub(crate) fn generate_parse(instrs: &Instructions) -> TokenStream {
         #parse_j
 
         impl Instruction {
+            /// Recebe uma palavra de 32 bits e tenta decodificá-la em uma
+            /// instrução.
             pub fn decode(word: u32) -> Result<Instruction> {
                 let opcode = (word & (63 << 26)) >> 26;
 

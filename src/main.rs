@@ -15,6 +15,7 @@ pub(crate) mod emulator;
 use emulator::Cpu;
 use emulator::Instruction;
 
+/// Carrega o arquivo num vetor de palavras de 32 bits.
 fn u32_vec_from_file(mut file: File) -> Vec<u32> {
     let mut data = Vec::new();
     file.read_to_end(&mut data).unwrap();
@@ -28,6 +29,7 @@ fn u32_vec_from_file(mut file: File) -> Vec<u32> {
         .collect()
 }
 
+/// Encapsula uma dupla .text/.data de palavras de 32 bits.
 #[derive(Debug)]
 pub struct Executable {
     pub text: Vec<u32>,
@@ -35,6 +37,7 @@ pub struct Executable {
 }
 
 impl Executable {
+    /// Lê os arquivos `pfx.text` e `pfx.data` e retorna um Executable contendo os dados
     pub fn from_naked_files(pfx: impl AsRef<str>) -> Result<Executable> {
         let text = u32_vec_from_file(File::open(format!("{}.text", pfx.as_ref()))?);
         let data = File::open(format!("{}.data", pfx.as_ref()))

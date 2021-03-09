@@ -9,6 +9,11 @@ pub use cpu::Cpu;
 //pub use instr::{IArgs, Instruction, RArgs};
 pub use memory::Memory;
 
+/// Mais uma vez usamos o `newtype`. Essa struct não é um registrador em si
+/// (vide `cpu.rs`), mas um *índice* para um registrador. 
+///
+/// Esse idiom é útil aqui para podermos implementar os aliases dos
+/// registradores para o disassemble.
 #[derive(Copy, Clone)]
 pub struct Register(u32);
 
@@ -31,6 +36,10 @@ impl std::fmt::Display for Register {
     }
 }
 
+/// Esse módulo contém a declaração das instruções e o decoder das mesmas.
+/// Eles são gerados automaticamente pela macro `instr_from_yaml` usando o
+/// arquivo `instructions.yml`, que está na raíz do projeto. A implementação
+/// dessa macro está na subcrate `minips-macros`.
 mod autogen {
     use minips_macros::instr_from_yaml;
 

@@ -1,4 +1,7 @@
-//! Implementação da própria CPU MIPS.
+//! Implementação da própria CPU MIPS. Aqui são interpretadas as instruções.
+//!
+//! Note que um tema comum nesse arquivo é a utilização do idiom `newtype`
+//! (mesma ideia que em Haskell :p). 
 
 use super::Instruction;
 use super::Memory;
@@ -10,8 +13,12 @@ use std::io::Write;
 
 use color_eyre::eyre::{eyre, Result};
 
+/// Nosso processador MIPS tem 32 registradores de 32 bits.
+/// Essa newtype encapsula uma array de 32*u32 para que possamos implementar
+/// traits arbitrários como quisermos nela, além de melhorar a legibilidade.
 struct Registers([u32; 32]);
 
+/// Reinterpreta os bits de um unsigned de 32 bits como um signed de 32 bits.
 fn as_signed(val: u32) -> i32 {
     i32::from_le_bytes(val.to_le_bytes())
 }
@@ -52,12 +59,11 @@ impl std::fmt::Display for Registers {
 
 /// Essa struct encapsula o estado da CPU, assim como a instância da memória.
 pub struct Cpu {
-    /// 31 registradores de 32 bits.
-    /// Na verdade, a ISA MIPS especifica 32 regs de 32 bits, no entanto não
-    /// precisamos implementar o reg $zero.
+    /// 32 registradores de 32 bits.
     regs: Registers,
 
     /// A instância da memória ligada a CPU atual.
+    /// No futuro, trocarei por uma MMU para fazer caching e mapping.
     mem: Memory,
 
     /// O program counter.
@@ -68,6 +74,8 @@ pub struct Cpu {
 }
 
 impl Cpu {
+    /// Cria uma nova instância da CPU, colocando o program counter no
+    /// endereço `start` especificado.
     pub fn new(start: u32, sp: u32, gp: u32) -> Cpu {
         // TODO set gp, sp
         let mut cpu = Cpu {
@@ -83,15 +91,21 @@ impl Cpu {
         cpu
     }
 
+    /// Retorna uma referência para o objeto Memory associado a essa CPU.
     #[allow(dead_code)]
     pub fn memory(&self) -> &Memory {
         &self.mem
     }
 
+    /// Retorna uma referência mutável para o objeto Memory associado a essa CPU.
     pub fn memory_mut(&mut self) -> &mut Memory {
         &mut self.mem
     }
 
+    /// Executa a instrução apontada pelo program counter atual. Retorna
+    /// `Ok(())` se nenhum problema ocorreu.
+    ///
+    /// Aqui se encontram as implementações das instruções.
     #[allow(unreachable_patterns)]
     pub fn cycle(&mut self) -> Result<()> {
         let word = self.mem.peek(self.pc)?;
@@ -100,11 +114,9 @@ impl Cpu {
         //println!("{:#010x}: {}", self.pc, instr);
         match instr {
             Instruction::ADD(args) => {
-                //self.regs[args.rd] = self.regs[args.rs] + self.regs[args.rt];
                 self.regs[args.rd] = self.regs[args.rs].overflowing_add(self.regs[args.rt]).0;
             }
             Instruction::ADDI(args) => {
-                //self.regs[args.rt] = self.regs[args.rs] + sign_extend(args.imm, 16);
                 self.regs[args.rt] = self.regs[args.rs]
                     .overflowing_add(sign_extend(args.imm, 16))
                     .0;
@@ -160,7 +172,6 @@ impl Cpu {
                 self.regs[args.rt] = self.regs[args.rs] | args.imm;
             }
             Instruction::ADDIU(args) => {
-                //self.regs[args.rt] = self.regs[args.rs].overflowing_add(args.imm).0;
                 self.regs[args.rt] = self.regs[args.rs]
                     .overflowing_add(sign_extend(args.imm, 16))
                     .0;
@@ -171,26 +182,20 @@ impl Cpu {
             Instruction::BEQ(args) => {
                 if self.regs[args.rs] == self.regs[args.rt] {
                     let target = branch_addr(args.imm);
-                    //println!("jump to {:#x}, pc is {:#x}", target, self.pc);
-                    //println!("target % 4 = {}", target % 4);
                     self.pc = (self.pc as i32 + target) as u32;
                 }
             }
             Instruction::BNE(args) => {
-                //println!("jump to {}, pc is {}", args.imm, self.pc);
                 if self.regs[args.rs] != self.regs[args.rt] {
                     let target = branch_addr(args.imm);
-                    //println!("jump to {:#x}, pc is {:#x}", target, self.pc);
                     self.pc = (self.pc as i32 + target) as u32;
                 }
             }
             Instruction::J(addr) => {
                 let target = jump_addr(self.pc, addr);
-                //println!("jumping to {:#010x} which is {:#010x}", addr, target);
                 self.pc = target - 4;
             }
             Instruction::SLT(args) => {
-                //println!("SLT: {} < {}?", as_signed(self.regs[args.rs]), as_signed(self.regs[args.rt]));
                 self.regs[args.rd] =
                     if as_signed(self.regs[args.rs]) < as_signed(self.regs[args.rt]) {
                         1
@@ -204,7 +209,6 @@ impl Cpu {
             Instruction::JAL(addr) => {
                 self.regs[Register(31)] = self.pc;
                 let target = jump_addr(self.pc, addr);
-                //println!("jumping to {:#010x} which is {:#010x}", addr, target);
                 self.pc = target - 4;
             }
             Instruction::SLL(args) => {
@@ -235,6 +239,8 @@ impl Cpu {
         Ok(())
     }
 
+    /// Inicia a execução e continua até que ocorra um erro ou a syscall de
+    /// parada seja chamada.
     pub fn run(&mut self) -> Result<()> {
         while !self.halt {
             self.cycle()?;

@@ -1,3 +1,15 @@
+//! minips-macros: implementação das proc-macros do projeto minips-rs
+//! 
+//! Essa subcrate implementa a procedural macro `instr_from_yaml`, responsável
+//! por parsear o arquivo `instructions.yml` e gerar a declaração das
+//! instruções, assim como seu pretty-printing e decoding.
+//!
+//! Cada submódulo implementa uma parte da macro:
+//! - decl: as declarações das instruções
+//! - instruction: parsing do arquivo yaml
+//! - fmt: pretty-printing/disassembly
+//! - parse: decoding
+
 use proc_macro::TokenStream;
 use quote::quote;
 
@@ -10,6 +22,13 @@ mod parse;
 
 use instruction::Instructions;
 
+/// Gera a declaração e implementação das instruções descritas por um arquivo
+/// YAML.
+///
+/// Uso:
+/// ```rust
+/// instr_from_yaml!(instructions.yaml)
+/// ```
 #[proc_macro]
 pub fn instr_from_yaml(item: TokenStream) -> TokenStream {
     let file = item.to_string();
@@ -27,6 +46,7 @@ pub fn instr_from_yaml(item: TokenStream) -> TokenStream {
         use crate::emulator::Register;
         use crate::emulator::instr::sign_extend_cast;
 
+        /// Operandos contidos numa intrução do tipo R.
         pub struct RArgs {
             pub rs: Register,
             pub rt: Register,
@@ -34,6 +54,7 @@ pub fn instr_from_yaml(item: TokenStream) -> TokenStream {
             pub shamt: u32,
         }
 
+        /// Operandos contidos numa intrução do tipo I.
         pub struct IArgs {
             pub rs: Register,
             pub rt: Register,

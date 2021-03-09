@@ -1,7 +1,13 @@
+//! Esse módulo implementa as funções relacionadas à memória no emulador.
+//! Futuramente, quero implementar uma MMU para mapping e caches, e
+//! provavelmente boa parte dessa empreitada aparecerá nesse módulo.
+
 use color_eyre::eyre::{eyre, Result};
 
 use std::collections::HashMap;
 
+/// Checa o alinhamento de um endereço. Causa erro caso não seja alinhado a
+/// palavras.
 macro_rules! check_alignment {
     ($addr:ident) => {
         if $addr % 4 != 0 {
@@ -65,6 +71,7 @@ impl Memory {
         Ok(())
     }
 
+    /// Imprime o conteúdo da memória na saída padrão.
     #[allow(dead_code)]
     pub fn dump(&self) {
         for (addr, word) in &self.memory {

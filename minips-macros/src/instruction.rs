@@ -1,7 +1,11 @@
+//! Esse módulo contém as estruturas que são lidas do arquivo YAML. As flags
+//! aqui definidas podem ser utilizadas nas instruções lá.
+
 use std::collections::HashMap;
 
 use serde::Deserialize;
 
+/// Uma instrução do tipo R.
 #[derive(Deserialize)]
 pub(crate) struct RInstruction {
     pub(crate) opcode: Option<u32>,
@@ -11,6 +15,7 @@ pub(crate) struct RInstruction {
     pub(crate) one_operand: Option<bool>,
 }
 
+/// Uma instrução do tipo I.
 #[derive(Deserialize)]
 pub(crate) struct IInstruction {
     pub(crate) opcode: u32,
@@ -20,11 +25,13 @@ pub(crate) struct IInstruction {
     pub(crate) invert: Option<bool>,
 }
 
+/// Uma instrução do tipo J.
 #[derive(Deserialize)]
 pub(crate) struct JInstruction {
     pub(crate) opcode: u32,
 }
 
+/// O conjunto de todas as instruções do arquivo YAML.
 #[derive(Deserialize)]
 pub(crate) struct Instructions {
     pub r: HashMap<String, RInstruction>,

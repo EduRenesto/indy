@@ -3,6 +3,8 @@ use crate::instruction::*;
 use quote::quote;
 use proc_macro2::{ Span, Ident, TokenStream };
 
+/// Gera o *match pattern* e o pretty-print/disassembly de uma instrução do
+/// tipo R.
 fn generate_r_fmt((name, instr): (&String, &RInstruction)) -> TokenStream {
     let ename = name.to_uppercase();
     let ename_ident = Ident::new(&ename, Span::call_site());
@@ -40,6 +42,9 @@ fn generate_r_fmt((name, instr): (&String, &RInstruction)) -> TokenStream {
     code.into()
 }
 
+
+/// Gera o *match pattern* e o pretty-print/disassembly de uma instrução do
+/// tipo I.
 fn generate_i_fmt((name, instr): (&String, &IInstruction)) -> TokenStream {
     let ename = name.to_uppercase();
     let ename_ident = Ident::new(&ename, Span::call_site());
@@ -83,6 +88,8 @@ fn generate_i_fmt((name, instr): (&String, &IInstruction)) -> TokenStream {
     code.into()
 }
 
+/// Gera o *match pattern* e o pretty-print/disassembly de uma instrução do
+/// tipo J.
 fn generate_j_fmt((name, _instr): (&String, &JInstruction)) -> TokenStream {
     let ename = name.to_uppercase();
     let ename_ident = Ident::new(&ename, Span::call_site());
@@ -94,6 +101,8 @@ fn generate_j_fmt((name, _instr): (&String, &JInstruction)) -> TokenStream {
     code.into()
 }
 
+/// Gera a implementação de `std::fmt::Display` para a enum `Instruction`. Ou
+/// seja, gera o pretty-printing/disassembly para as instruções.
 pub(crate) fn generate_fmt(instrs: &Instructions) -> TokenStream {
     let r = instrs.r
         .iter()
