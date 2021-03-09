@@ -13,12 +13,15 @@
 # Campos:
 # - opcode: o valor de `opcode` da instrução. Para as R, é 0 por default.
 # - funct: o valor de `funct` da instrução.
-# - fmt: como a instrução deve ser printada no disassembly. A sintaxe
-#   apresentada nesse campo será exatamente o que será colocado dentro 
-#   da chamada à macro format!, a menos de parênteses e do parâmetro do
-#   formatter. Opcional.
 # - sign_ext: `true` se o valor imediato deve ser interpretado como um signed. Opcional
 #   e defaulta para `true`.
+# - one_operand: `true` se a instrução só leva em consideração apenas um operando. Opcional
+#   e defaulta para `false`.
+# - shift: `true` se a instrução usa o campo `shamt`. Opcional e defaulta para `false`.
+# - invert: `true` se o disassemble da instrução deve mostrar os operandos na ordem invertida.
+#   Opcional e defaulta para `false`.
+# - load_store: `true` se a instrução faz load/store.
+# - half_word: `true` se a instrução só tem
 
 # Instrucoes R
 r:
@@ -31,6 +34,7 @@ r:
         funct: 0x24
     jr:
         funct: 0x08
+        one_operand: true
     nor:
         funct: 0x27
     or: 
@@ -41,8 +45,10 @@ r:
         funct: 0x2b
     sll:
         funct: 0x00
+        shift: true
     srl:
         funct: 0x02
+        shift: true
     sub:
         funct: 0x22
     subu:
@@ -82,8 +88,10 @@ i:
         sign_ext: false
     beq:
         opcode: 0x04
+        invert: true
     bne:
         opcode: 0x05
+        invert: true
     lbu:
         opcode: 0x24
     lhu:
@@ -92,8 +100,10 @@ i:
         opcode: 0x30
     lui:
         opcode: 0x0F
+        half_word: true
     lw:
         opcode: 0x23
+        load_store: true
     ori:
         opcode: 0x0D
         sign_ext: false
@@ -109,14 +119,17 @@ i:
         opcode: 0x29
     sw:
         opcode: 0x2B
+        load_store: true
 
     # Arithmetic Core Instruction Set
     lwc1:
         opcode: 0x31
+        load_store: true
     ldc1:
         opcode: 0x35
     swc1:
         opcode: 0x39
+        load_store: true
     sdc1:
         opcode: 0x3D
 

@@ -7,12 +7,17 @@ pub(crate) struct RInstruction {
     pub(crate) opcode: Option<u32>,
     pub(crate) funct: u32,
     pub(crate) has_args: Option<bool>,
+    pub(crate) shift: Option<bool>,
+    pub(crate) one_operand: Option<bool>,
 }
 
 #[derive(Deserialize)]
 pub(crate) struct IInstruction {
     pub(crate) opcode: u32,
     pub(crate) sign_ext: Option<bool>,
+    pub(crate) load_store: Option<bool>,
+    pub(crate) half_word: Option<bool>,
+    pub(crate) invert: Option<bool>,
 }
 
 #[derive(Deserialize)]
