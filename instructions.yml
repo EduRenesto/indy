@@ -1,55 +1,128 @@
+# Esse arquivo contém a lista das instruções MIPS.
+#
+# A subcrate `minips-macros` consome essa lista e gera *automaticamente*
+# a implementação do decoder das instruções.
+#
+# O rationale desse método é que é menos repetitivo desse jeito. Anteriormente,
+# eu precisaria implementar cada nova instrução em uns 4 lugares. Usando isso, eu
+# descrevo ela aqui e só preciso implementar a nova variante do enum no cpu.rs.
+#
+# Também, foi uma desculpa para eu finalmente aprender a usar procedural macros. Ah,
+# e também uma justificativa minha para eu procrastinar outras disciplinas :p
+#
+# Campos:
+# - opcode: o valor de `opcode` da instrução. Para as R, é 0 por default.
+# - funct: o valor de `funct` da instrução.
+# - fmt: como a instrução deve ser printada no disassembly. A sintaxe
+#   apresentada nesse campo será exatamente o que será colocado dentro 
+#   da chamada à macro format!, a menos de parênteses e do parâmetro do
+#   formatter. Opcional.
+# - sign_ext: `true` se o valor imediato deve ser interpretado como um signed. Opcional
+#   e defaulta para `true`.
+
 # Instrucoes R
 r:
     # Core Instruction Set
-    add: 0x20
-    addu: 0x21
-    and: 0x24
-    jr: 0x08
-    nor: 0x27
-    or: 0x25
-    slt: 0x2a
-    sltu: 0x2b
-    sll: 0x00
-    srl: 0x02
-    sub: 0x22
-    subu: 0x23
+    add: 
+        funct: 0x20
+    addu: 
+        funct: 0x21
+    and:
+        funct: 0x24
+    jr:
+        funct: 0x08
+    nor:
+        funct: 0x27
+    or: 
+        funct: 0x25
+    slt:
+        funct: 0x2a
+    sltu:
+        funct: 0x2b
+    sll:
+        funct: 0x00
+    srl:
+        funct: 0x02
+    sub:
+        funct: 0x22
+    subu:
+        funct: 0x23
 
     # Arithmetic Core Instruction Set
-    div: 0x1A
-    divu: 0x1B
-    mfhi: 0x10
-    mflo: 0x12
-    mfc0: 0x00
-    mult: 0x18
-    multu: 0x19
-    sra: 0x03
+    div: 
+        funct: 0x1A
+    divu:
+        funct: 0x1B
+    mfhi:
+        funct: 0x10
+    mflo:
+        funct: 0x12
+    mfc0:
+        opcode: 0x10
+        funct: 0x00
+    mult:
+        funct: 0x18
+    multu:
+        funct: 0x19
+    sra:
+        funct: 0x03
+
+    syscall:
+        funct: 0x0c
+        has_args: false
 
 # Instrucoes I
 i:
-    addi: 0x08
-    addiu: 0x09
-    andi: 0x0C
-    beq: 0x04
-    lbu: 0x24
-    lhu: 0x25
-    ll: 0x30
-    lui: 0x0F
-    lw: 0x23
-    ori: 0x0D
-    slti: 0x0A
-    sltiu: 0x0B
-    sb: 0x28
-    sc: 0x38
-    sh: 0x29
-    sw: 0x2B
+    addi:
+        opcode: 0x08
+    addiu:
+        opcode: 0x09
+    andi:
+        opcode: 0x0C
+        sign_ext: false
+    beq:
+        opcode: 0x04
+    bne:
+        opcode: 0x05
+    lbu:
+        opcode: 0x24
+    lhu:
+        opcode: 0x25
+    ll:
+        opcode: 0x30
+    lui:
+        opcode: 0x0F
+    lw:
+        opcode: 0x23
+    ori:
+        opcode: 0x0D
+        sign_ext: false
+    slti:
+        opcode: 0x0A
+    sltiu:
+        opcode: 0x0B
+    sb:
+        opcode: 0x28
+    sc:
+        opcode: 0x38
+    sh:
+        opcode: 0x29
+    sw:
+        opcode: 0x2B
 
     # Arithmetic Core Instruction Set
-    lwc1: 0x31
-    ldc1: 0x35
-    swc1: 0x39
-    sdc1: 0x3D
+    lwc1:
+        opcode: 0x31
+    ldc1:
+        opcode: 0x35
+    swc1:
+        opcode: 0x39
+    sdc1:
+        opcode: 0x3D
 
 # Instrucoes J
 j:
-    j: 0x02
-    jal: 0x03
+    j:
+        opcode: 0x02
+    jal:
+        opcode: 0x03

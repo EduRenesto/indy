@@ -109,7 +109,7 @@ impl Cpu {
                     .overflowing_add(sign_extend(args.imm, 16))
                     .0;
             }
-            Instruction::SYSCALL => {
+            Instruction::SYSCALL(_) => {
                 //println!("debug: syscall");
                 //println!("{}", self.regs);
                 match self.regs[Register(2)] {
