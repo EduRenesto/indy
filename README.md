@@ -41,7 +41,18 @@ Para executar o binário, utilize:
 $ cargo run -- run file
 ```
 
-## Relatório (TODO)
+## Documentação
+
+O código inteiro foi documentado utilizando o `rustdoc`, nativo da linguagem.
+Para ler a documentação em formato HTML (recomendo!), execute o comando:
+
+```sh
+$ cargo doc
+```
+
+A documentação estará disponível no arquivo `target/doc/minips_rs/index.html`.
+
+## Relatório
 
 O relatório está disponível em formato PDF na pasta `relatorio/relatorio.pdf`.
 Para compilar, é necessário o `pandoc`, uma distribuição \LaTeX funcional e
