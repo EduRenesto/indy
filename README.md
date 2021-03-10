@@ -81,9 +81,13 @@ Para executar um arquivo ELF, basta usar o subcomando `runelf`. Exemplo:
 cargo run -- runelf res/extra/90.simple.o
 ```
 
-Futuras melhorias a essa feature são implementar um `decodeelf` para
-desconstruir a seção texto de um arquivo ELF, utilizando informações de debug
-para termos um pretty-print legal.
+Para desmontá-lo, use o subcomando `decodeelf`. Ele irá desconstruir todas as
+seções que estão marcadas com a flag `ALLOC`, ou seja, as que serão carregadas
+na memória. Exemplo:
+
+```sh
+cargo run -- decodeelf res/extra/90.simple.o
+```
 
 Outro TODO grande é rodar código Rust MIPS!
 
@@ -101,3 +105,7 @@ um framebuffer em memória para brincar com uns gráficos.
       falta realmente implementar um driver no Kernel para simular serial
       usando syscalls, escrever a device tree que descreve o hardware emulado
       e carregar tudo direito na memória. Divertido!
+    - **UPDATE**: o ELF loader do projeto consegue tranquilamente carregar o
+      Kernel, e o `decodeelf` já desconstrói ele por inteiro. Para considerar
+      conseguir rodar Linux, é preciso implementar no mínimo exceções (o
+      coprocessador 0 em específico).
