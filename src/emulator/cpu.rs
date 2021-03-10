@@ -1,7 +1,7 @@
 //! Implementação da própria CPU MIPS. Aqui são interpretadas as instruções.
 //!
 //! Note que um tema comum nesse arquivo é a utilização do idiom `newtype`
-//! (mesma ideia que em Haskell :p). 
+//! (mesma ideia que em Haskell :p).
 
 use super::Instruction;
 use super::Memory;

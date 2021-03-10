@@ -10,7 +10,7 @@ pub use cpu::Cpu;
 pub use memory::Memory;
 
 /// Mais uma vez usamos o `newtype`. Essa struct não é um registrador em si
-/// (vide `cpu.rs`), mas um *índice* para um registrador. 
+/// (vide `cpu.rs`), mas um *índice* para um registrador.
 ///
 /// Esse idiom é útil aqui para podermos implementar os aliases dos
 /// registradores para o disassemble.

@@ -75,7 +75,7 @@ fn main() -> Result<()> {
         .subcommand(
             SubCommand::with_name("runelf")
                 .about("Carrega um arquivo ELF e o executa (bonus!)")
-                .arg( Arg::with_name("file").index(1).required(true))
+                .arg(Arg::with_name("file").index(1).required(true)),
         )
         .get_matches();
 
@@ -115,21 +115,26 @@ fn main() -> Result<()> {
 
         for section in elf.program_headers {
             if section.p_type == goblin::elf::program_header::PT_LOAD {
-                println!("elf: loading {} bytes to {:#010x}...", section.p_memsz, section.p_paddr);
+                println!(
+                    "elf: loading {} bytes to {:#010x}...",
+                    section.p_memsz, section.p_paddr
+                );
                 let offset = section.p_offset as usize;
                 let size = section.p_filesz as usize;
 
                 //let mut section_bytes = Vec::with_capacity(size);
                 //section_bytes.copy_from_slice(&file_bytes[offset..offset + size]);
-                let section_bytes: Vec<u32> = file_bytes[offset..offset + size].chunks(4)
+                let section_bytes: Vec<u32> = file_bytes[offset..offset + size]
+                    .chunks(4)
                     .map(|b| {
                         let mut owned_b = [0u8; 4];
                         owned_b.copy_from_slice(b);
                         u32::from_le_bytes(owned_b)
                     })
-                .collect();
+                    .collect();
 
-                cpu.memory_mut().load_slice_into_addr(section.p_paddr as u32, &section_bytes[..])?;
+                cpu.memory_mut()
+                    .load_slice_into_addr(section.p_paddr as u32, &section_bytes[..])?;
             }
         }
 

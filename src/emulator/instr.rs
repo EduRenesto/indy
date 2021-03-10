@@ -19,7 +19,6 @@ pub fn sign_extend(val: u32, init_size: u32) -> u32 {
     }
 }
 
-
 /// Faz extensão de sinal em `val`, supondo que o tamanho anterior do inteiro
 /// era `init_size` bits, e reinterpreta como um signed de 32 bits.
 pub fn sign_extend_cast(val: u32, init_size: u32) -> i32 {
