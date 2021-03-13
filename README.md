@@ -12,6 +12,12 @@ são decodificados e executados com sucesso pelo minips-rs.
 Como tenho enorme interesse por baixo nível, estou usando esse projeto para
 explorações pessoais (vide seção *extras*).
 
+## Relatório
+
+O relatório está disponível em formato PDF na pasta `relatorio/relatorio.pdf`.
+Para compilar, é necessário o `pandoc`, uma distribuição \LaTeX funcional e
+basta rodar `make` na pasta `relatorio`.
+
 ## Requisitos
 
 - Toolchain Rust: o projeto está sendo desenvolvido e testado utilizando a
@@ -51,12 +57,6 @@ $ cargo doc
 ```
 
 A documentação estará disponível no arquivo `target/doc/minips_rs/index.html`.
-
-## Relatório
-
-O relatório está disponível em formato PDF na pasta `relatorio/relatorio.pdf`.
-Para compilar, é necessário o `pandoc`, uma distribuição \LaTeX funcional e
-basta rodar `make` na pasta `relatorio`.
 
 ## Extras
 

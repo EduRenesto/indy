@@ -9,6 +9,7 @@ geometry:
     - left=2cm
     - right=2cm
 papersize: a4
+colorlinks: true
 ---
 
 # Dados
@@ -16,7 +17,7 @@ papersize: a4
 - **Nome:** Eduardo Renesto Estanquiere
 - **RA:** 11201810086
 - **Usuário do GitHub:** `EduRenesto`
-- **Link do vídeo:** TODO
+- **Link do vídeo:** [https://www.youtube.com/watch?v=ObtdlKSBpvQ](https://www.youtube.com/watch?v=ObtdlKSBpvQ)
 
 # Introdução
 
