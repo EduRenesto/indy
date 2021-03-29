@@ -146,6 +146,10 @@ pub(crate) fn generate_parse(instrs: &Instructions) -> TokenStream {
             /// Recebe uma palavra de 32 bits e tenta decodificá-la em uma
             /// instrução.
             pub fn decode(word: u32) -> Result<Instruction> {
+                if word == 0 {
+                    return Ok(Instruction::NOP);
+                }
+
                 let opcode = (word & (63 << 26)) >> 26;
 
                 match opcode {

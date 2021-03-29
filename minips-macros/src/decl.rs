@@ -57,6 +57,8 @@ pub(crate) fn generate_decl(instrs: &Instructions) -> TokenStream {
     let code = quote! {
         /// As instruções MIPS, geradas a partir da macro `instr_from_yaml`.
         pub enum Instruction {
+            NOP,
+
             #(#r)
             *
             #(#i)

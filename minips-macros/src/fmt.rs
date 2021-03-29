@@ -121,6 +121,7 @@ pub(crate) fn generate_fmt(instrs: &Instructions) -> TokenStream {
         impl std::fmt::Display for Instruction {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
                 match self {
+                    &Instruction::NOP => write!(f, "NOP"),
                     #(#r)
                     *
                     #(#i)

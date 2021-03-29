@@ -113,6 +113,7 @@ impl Cpu {
         let instr = Instruction::decode(*word)?;
         //println!("{:#010x}: {}", self.pc, instr);
         match instr {
+            Instruction::NOP => {}
             Instruction::ADD(args) => {
                 self.regs[args.rd] = self.regs[args.rs].overflowing_add(self.regs[args.rt]).0;
             }
