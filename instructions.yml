@@ -77,6 +77,10 @@ r:
         funct: 0x0c
         has_args: false
 
+    jalr:
+        funct: 0x09
+        two_operands: true
+
 # Instrucoes I
 i:
     addi:

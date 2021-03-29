@@ -232,6 +232,21 @@ impl Cpu {
             Instruction::OR(args) => {
                 self.regs[args.rd] = self.regs[args.rs] | self.regs[args.rt];
             }
+            Instruction::SLTI(args) => {
+                self.regs[args.rt] =
+                    if as_signed(self.regs[args.rs]) < sign_extend_cast(args.imm, 16) {
+                        1
+                    } else {
+                        0
+                    };
+            }
+            Instruction::JALR(args) => {
+                // Note to self:
+                // "(...) is the address of the *second* instruction following the branch (...)"
+                // por isso o + 4
+                self.regs[args.rd] = self.pc + 4;
+                self.pc = self.regs[args.rs] - 4;
+            }
             a => return Err(eyre!("Instruction {} not implemented yet!", a)),
         }
 

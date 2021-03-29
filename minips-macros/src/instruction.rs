@@ -6,6 +6,9 @@ use std::collections::HashMap;
 use serde::Deserialize;
 
 /// Uma instrução do tipo R.
+///
+/// TODO: remover `has_args`, `one_operand`, `two_operads` e colocar
+/// um `n_operands: Option<u32>`.
 #[derive(Deserialize)]
 pub(crate) struct RInstruction {
     pub(crate) opcode: Option<u32>,
@@ -13,6 +16,7 @@ pub(crate) struct RInstruction {
     pub(crate) has_args: Option<bool>,
     pub(crate) shift: Option<bool>,
     pub(crate) one_operand: Option<bool>,
+    pub(crate) two_operands: Option<bool>,
 }
 
 /// Uma instrução do tipo I.
