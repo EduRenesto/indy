@@ -111,6 +111,9 @@ i:
         invert: true
     lbu:
         opcode: 0x24
+    lb:
+        opcode: 0x20
+        load_store: true
     lhu:
         opcode: 0x25
     ll:
