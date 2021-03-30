@@ -373,6 +373,28 @@ impl Cpu {
                 let addr = self.regs[args.rs] as i32 + sign_extend_cast(args.imm, 16);
                 self.regs[args.rt] = sign_extend(*self.mem.peek(addr as u32)?, 8);
             }
+            Instruction::LWC1(args) => {
+                let addr = self.regs[args.rs] as i32 + sign_extend_cast(args.imm, 16);
+                self.float_regs[args.rt.into()] = *self.mem.peek(addr as u32)?;
+            }
+            Instruction::MFC1(args) => {
+                self.regs[args.ft.into()] = self.float_regs[args.fs];
+            }
+            Instruction::LDC1(args) => {
+                let addr = self.regs[args.rs] as i32 + sign_extend_cast(args.imm, 16);
+
+                let rt: FloatRegister = args.rt.into();
+
+                self.float_regs[rt] = *self.mem.peek(addr as u32)?;
+                self.float_regs[rt + 1] = *self.mem.peek(addr as u32 + 4)?;
+            }
+            Instruction::MOV_S(args) => {
+                self.float_regs[args.fd] = self.float_regs[args.fs];
+            }
+            Instruction::MOV_D(args) => {
+                self.float_regs[args.fd] = self.float_regs[args.fs];
+                self.float_regs[args.fd + 1] = self.float_regs[args.fs + 1];
+            }
             a => return Err(eyre!("Instruction {} not implemented yet!", a)),
         }
 

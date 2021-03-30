@@ -17,6 +17,14 @@ pub use memory::Memory;
 #[derive(Copy, Clone)]
 pub struct Register(u32);
 
+impl std::ops::Add<u32> for Register {
+    type Output = Register;
+
+    fn add(self, rhs: u32) -> Self::Output {
+        Register(self.0 + rhs)
+    }
+}
+
 impl std::fmt::Display for Register {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self.0 {
@@ -49,6 +57,14 @@ impl std::convert::From<Register> for FloatRegister {
 impl std::convert::From<FloatRegister> for Register {
     fn from(reg: FloatRegister) -> Self {
         Register(reg.0)
+    }
+}
+
+impl std::ops::Add<u32> for FloatRegister {
+    type Output = FloatRegister;
+
+    fn add(self, rhs: u32) -> Self::Output {
+        FloatRegister(self.0 + rhs)
     }
 }
 

@@ -63,16 +63,16 @@ pub fn instr_from_yaml(item: TokenStream) -> TokenStream {
 
         /// Operandos contidos numa instrução do tipo FR.
         pub struct FRArgs {
-            ft: FloatRegister,
-            fs: FloatRegister,
-            fd: FloatRegister,
-            funct: u32,
+            pub ft: FloatRegister,
+            pub fs: FloatRegister,
+            pub fd: FloatRegister,
+            pub funct: u32,
         }
 
         /// Operandos contidos numa instrução do tipo FI.
         pub struct FIArgs {
-            ft: FloatRegister,
-            imm: u32,
+            pub ft: FloatRegister,
+            pub imm: u32,
         }
 
         #decl
