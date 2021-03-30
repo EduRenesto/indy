@@ -34,6 +34,7 @@ fn u32_vec_from_file(mut file: File) -> Vec<u32> {
 pub struct Executable {
     pub text: Vec<u32>,
     pub data: Option<Vec<u32>>,
+    pub rodata: Option<Vec<u32>>,
 }
 
 impl Executable {
@@ -43,8 +44,11 @@ impl Executable {
         let data = File::open(format!("{}.data", pfx.as_ref()))
             .ok()
             .map(u32_vec_from_file);
+        let rodata = File::open(format!("{}.rodata", pfx.as_ref()))
+            .ok()
+            .map(u32_vec_from_file);
 
-        Ok(Executable { text, data })
+        Ok(Executable { text, data, rodata })
     }
 }
 
@@ -108,6 +112,10 @@ fn main() -> Result<()> {
         if let Some(ref data) = executable.data {
             cpu.memory_mut()
                 .load_slice_into_addr(0x10010000, &data[..])?;
+        }
+        if let Some(ref data) = executable.rodata {
+            cpu.memory_mut()
+                .load_slice_into_addr(0x00800000, &data[..])?;
         }
 
         cpu.run()?;
