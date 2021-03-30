@@ -230,6 +230,16 @@ fr:
     mtc1:
         opcode: 0x11
         fmt: 0x10
+        funct: 0x00
+
+    # essas nao estao no greencard
+    mov.s:
+        opcode: 0x11
+        fmt: 0x10
+        funct: 0x06
+    mov.d:
+        opcode: 0x11
+        fmt: 0x11
         funct: 0x06
 
 
