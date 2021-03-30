@@ -227,6 +227,12 @@ impl Cpu {
                     1 => {
                         print!("{}", as_signed(self.regs[Register(4)]));
                     }
+                    2 => {
+                        print!("{}", word_to_single(self.float_regs[FloatRegister(12)]));
+                    }
+                    3 => {
+                        print!("{}", dword_to_double(self.float_regs[FloatRegister(12)], self.float_regs[FloatRegister(13)]));
+                    }
                     4 => {
                         let mut addr = self.regs[Register(4)];
                         //println!("syscall: string at {:#x}", addr);
@@ -246,6 +252,25 @@ impl Cpu {
                         let val = input.trim().parse::<i32>()?;
 
                         self.regs[Register(2)] = as_unsigned(val);
+                    }
+                    6 => {
+                        let mut input = String::new();
+                        std::io::stdin().read_line(&mut input)?;
+
+                        let val = input.trim().parse::<f32>()?;
+
+                        self.float_regs[FloatRegister(0)] = single_to_word(val);
+                    }
+                    7 => {
+                        let mut input = String::new();
+                        std::io::stdin().read_line(&mut input)?;
+
+                        let val = input.trim().parse::<f64>()?;
+
+                        let (lo, hi) = double_to_dword(val);
+
+                        self.float_regs[FloatRegister(0)] = lo;
+                        self.float_regs[FloatRegister(1)] = hi;
                     }
                     10 => {
                         self.halt = true;
