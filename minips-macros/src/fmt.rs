@@ -126,8 +126,18 @@ fn generate_fr_fmt((name, instr): (&String, &FRInstruction)) -> TokenStream {
     let ename_ident = Ident::new(&ename, Span::call_site());
 
     let code = if instr.two_operands.unwrap_or(false) {
-        quote! {
-            &Instruction:: #ename_ident (ref a) => write!(f, "{} {}, {}", #name, a.fd, a.fs),
+        if let Some(true) = instr.first_is_float {
+            quote! {
+                &Instruction:: #ename_ident (ref a) => write!(f, "{} {}, {}", #name, Register::from(a.ft), a.fs),
+            }
+        } else if let Some(false) = instr.first_is_float {
+            quote! {
+                &Instruction:: #ename_ident (ref a) => write!(f, "{} {}, {}", #name, a.ft, Register::from(a.fs)),
+            }
+        } else {
+            quote! {
+                &Instruction:: #ename_ident (ref a) => write!(f, "{} {}, {}", #name, a.fd, a.fs),
+            }
         }
     } else {
         quote! {

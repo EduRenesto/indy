@@ -235,10 +235,13 @@ fr:
         fmt: 0x00
         funct: 0x00
         two_operands: true
+        first_is_float: true
     mtc1:
         opcode: 0x11
         fmt: 0x04
         funct: 0x00
+        two_operands: true
+        first_is_float: false
 
     # essas nao estao no greencard
     mov.s:

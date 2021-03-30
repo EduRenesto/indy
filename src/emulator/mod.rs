@@ -37,11 +37,18 @@ impl std::fmt::Display for Register {
 }
 
 /// Um índice para um registrador de ponto flutuante.
+#[derive(Copy, Clone)]
 pub struct FloatRegister(u32);
 
 impl std::convert::From<Register> for FloatRegister {
     fn from(reg: Register) -> Self {
         FloatRegister(reg.0)
+    }
+}
+
+impl std::convert::From<FloatRegister> for Register {
+    fn from(reg: FloatRegister) -> Self {
+        Register(reg.0)
     }
 }
 
