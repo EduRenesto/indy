@@ -426,6 +426,9 @@ impl Cpu {
                 self.float_regs[args.fd] = self.float_regs[args.fs];
                 self.float_regs[args.fd + 1] = self.float_regs[args.fs + 1];
             }
+            Instruction::MTC1(args) => {
+                self.float_regs[args.fs] = self.regs[args.ft.into()];
+            }
             a => return Err(eyre!("Instruction {} not implemented yet!", a)),
         }
 
