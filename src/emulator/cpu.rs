@@ -225,7 +225,7 @@ impl Cpu {
                 //println!("{}", self.regs);
                 match self.regs[Register(2)] {
                     1 => {
-                        print!("{}", self.regs[Register(4)]);
+                        print!("{}", as_signed(self.regs[Register(4)]));
                     }
                     4 => {
                         let mut addr = self.regs[Register(4)];
@@ -243,9 +243,9 @@ impl Cpu {
                         let mut input = String::new();
                         std::io::stdin().read_line(&mut input)?;
 
-                        let val = input.trim().parse::<u32>()?;
+                        let val = input.trim().parse::<i32>()?;
 
-                        self.regs[Register(2)] = val;
+                        self.regs[Register(2)] = as_unsigned(val);
                     }
                     10 => {
                         self.halt = true;
@@ -368,6 +368,10 @@ impl Cpu {
                 let b = as_signed(self.regs[args.rt]);
 
                 self.arith_regs = (as_unsigned(a / b), as_unsigned(a % b));
+            }
+            Instruction::LB(args) => {
+                let addr = self.regs[args.rs] as i32 + sign_extend_cast(args.imm, 16);
+                self.regs[args.rt] = sign_extend(*self.mem.peek(addr as u32)?, 8);
             }
             a => return Err(eyre!("Instruction {} not implemented yet!", a)),
         }
