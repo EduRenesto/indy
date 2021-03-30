@@ -10,6 +10,7 @@ use super::Register;
 use super::instr::{branch_addr, jump_addr, sign_extend, sign_extend_cast};
 
 use std::io::Write;
+use std::convert::TryInto;
 
 use color_eyre::eyre::{eyre, Result};
 
@@ -21,6 +22,11 @@ struct Registers([u32; 32]);
 /// Reinterpreta os bits de um unsigned de 32 bits como um signed de 32 bits.
 fn as_signed(val: u32) -> i32 {
     i32::from_le_bytes(val.to_le_bytes())
+}
+
+/// Reinterpreta os bits de um signed de 32 bits como um unsigned de 32 bits.
+fn as_unsigned(val: i32) -> u32 {
+    u32::from_le_bytes(val.to_le_bytes())
 }
 
 impl std::ops::Index<Register> for Registers {
@@ -77,6 +83,9 @@ pub struct Cpu {
 
     /// A CPU terminou a execução?
     halt: bool,
+
+    /// Os registradores de aritmetica.
+    arith_regs: (u32, u32),
 }
 
 impl Cpu {
@@ -91,6 +100,7 @@ impl Cpu {
             in_delay_slot: false,
             branch_to: None,
             halt: false,
+            arith_regs: (0, 0),
         };
 
         cpu.regs[Register(28)] = gp;
@@ -263,6 +273,29 @@ impl Cpu {
                 // por isso o + 4
                 self.regs[args.rd] = self.pc + 4;
                 self.branch_to = Some(self.regs[args.rs]);
+            }
+            Instruction::MULT(args) => {
+                let a = as_signed(self.regs[args.rs]) as i64;
+                let b = as_signed(self.regs[args.rt]) as i64;
+
+                let bytes = (a * b).to_le_bytes();
+
+                let lo = u32::from_le_bytes(bytes[0..4].try_into().unwrap());
+                let hi = u32::from_le_bytes(bytes[4..8].try_into().unwrap());
+
+                self.arith_regs = (lo, hi);
+            }
+            Instruction::MFLO(args) => {
+                self.regs[args.rd] = self.arith_regs.0;
+            }
+            Instruction::MFHI(args) => {
+                self.regs[args.rd] = self.arith_regs.1;
+            }
+            Instruction::DIV(args) => {
+                let a = as_signed(self.regs[args.rs]);
+                let b = as_signed(self.regs[args.rt]);
+
+                self.arith_regs = (as_unsigned(a / b), as_unsigned(a % b));
             }
             a => return Err(eyre!("Instruction {} not implemented yet!", a)),
         }

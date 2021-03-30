@@ -81,6 +81,10 @@ r:
         funct: 0x09
         two_operands: true
 
+    break:
+        funct: 0x0d
+        has_args: false
+
 # Instrucoes I
 i:
     addi:
