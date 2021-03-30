@@ -28,6 +28,7 @@ pub(crate) struct IInstruction {
     pub(crate) load_store: Option<bool>,
     pub(crate) half_word: Option<bool>,
     pub(crate) invert: Option<bool>,
+    pub(crate) target_is_float: Option<bool>,
 }
 
 /// Uma instrução do tipo J.
@@ -42,6 +43,7 @@ pub(crate) struct FRInstruction {
     pub(crate) opcode: u32,
     pub(crate) fmt: u32,
     pub(crate) funct: u32,
+    pub(crate) two_operands: Option<bool>,
 }
 
 /// Uma instrução do tipo FI.

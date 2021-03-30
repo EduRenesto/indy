@@ -145,11 +145,15 @@ i:
     lwc1:
         opcode: 0x31
         load_store: true
+        target_is_float: true
     ldc1:
         opcode: 0x35
+        load_store: true
+        target_is_float: true
     swc1:
         opcode: 0x39
         load_store: true
+        target_is_float: true
     sdc1:
         opcode: 0x3D
 
@@ -230,6 +234,7 @@ fr:
         opcode: 0x11
         fmt: 0x00
         funct: 0x00
+        two_operands: true
     mtc1:
         opcode: 0x11
         fmt: 0x04
@@ -240,10 +245,12 @@ fr:
         opcode: 0x11
         fmt: 0x10
         funct: 0x06
+        two_operands: true
     mov.d:
         opcode: 0x11
         fmt: 0x11
         funct: 0x06
+        two_operands: true
 
 
 # Instrucoes FI

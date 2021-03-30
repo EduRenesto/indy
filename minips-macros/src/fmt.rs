@@ -27,7 +27,7 @@ fn generate_r_fmt((name, instr): (&String, &RInstruction)) -> TokenStream {
         };
 
         c.into()
-    } else if instr.move_cop.unwrap_or(true) {
+    } else if instr.move_cop.unwrap_or(false) {
         let c = quote! {
             write!(f, "{} {}", #name, a.rd)
         };
@@ -62,10 +62,16 @@ fn generate_i_fmt((name, instr): (&String, &IInstruction)) -> TokenStream {
     let ename_ident = Ident::new(&ename, Span::call_site());
 
     let fmt: TokenStream = if instr.load_store.unwrap_or(false) {
-        let c = quote! {
-            write!(f, "{} {}, {:#x}({})", #name, a.rt, sign_extend_cast(a.imm, 16), a.rs)
+        let c = if instr.target_is_float.unwrap_or(false) {
+            quote! {
+                write!(f, "{} {}, {:#x}({})", #name, FloatRegister::from(a.rt), sign_extend_cast(a.imm, 16), a.rs)
+            }
+        } else {
+            quote! {
+                write!(f, "{} {}, {:#x}({})", #name, a.rt, sign_extend_cast(a.imm, 16), a.rs)
+            }
         };
-        
+
         c.into()
     } else if instr.half_word.unwrap_or(false) {
         let c = quote! {
@@ -115,12 +121,18 @@ fn generate_j_fmt((name, _instr): (&String, &JInstruction)) -> TokenStream {
 
 /// Gera o *match pattern* e o pretty-print/disassembly de uma instrução do
 /// tipo FR.
-fn generate_fr_fmt((name, _instr): (&String, &FRInstruction)) -> TokenStream {
+fn generate_fr_fmt((name, instr): (&String, &FRInstruction)) -> TokenStream {
     let ename = name.to_uppercase().replace(".", "_");
     let ename_ident = Ident::new(&ename, Span::call_site());
 
-    let code = quote! {
-        &Instruction:: #ename_ident (ref a) => write!(f, "{} {}, {}, {}", #name, a.fd, a.fs, a.ft),
+    let code = if instr.two_operands.unwrap_or(false) {
+        quote! {
+            &Instruction:: #ename_ident (ref a) => write!(f, "{} {}, {}", #name, a.fd, a.fs),
+        }
+    } else {
+        quote! {
+            &Instruction:: #ename_ident (ref a) => write!(f, "{} {}, {}, {}", #name, a.fd, a.fs, a.ft),
+        }
     };
 
     code.into()
