@@ -6,6 +6,7 @@
 use super::Instruction;
 use super::Memory;
 use super::Register;
+use super::FloatRegister;
 
 use super::instr::{branch_addr, jump_addr, sign_extend, sign_extend_cast};
 
@@ -19,6 +20,12 @@ use color_eyre::eyre::{eyre, Result};
 /// traits arbitrários como quisermos nela, além de melhorar a legibilidade.
 struct Registers([u32; 32]);
 
+/// Armazena os 32 registradores de ponto flutuante.
+///
+/// Não armazenamos diretamente os f32 porque assim fica mais fácil de
+/// fazer as conversões single <-> double.
+struct FloatRegisters([u32; 32]);
+
 /// Reinterpreta os bits de um unsigned de 32 bits como um signed de 32 bits.
 fn as_signed(val: u32) -> i32 {
     i32::from_le_bytes(val.to_le_bytes())
@@ -27,6 +34,53 @@ fn as_signed(val: u32) -> i32 {
 /// Reinterpreta os bits de um signed de 32 bits como um unsigned de 32 bits.
 fn as_unsigned(val: i32) -> u32 {
     u32::from_le_bytes(val.to_le_bytes())
+}
+
+/// Reinterpreta os bits de um unsigned de 32 bits como um float de single precision.
+fn word_to_single(val: u32) -> f32 {
+    // TODO does this work?
+    // Se sim, devo fazer nos outros acima?
+    // Isso é _no additional copy_, mas e se &val nao existir mais?
+    // Provavelmente vai.
+    unsafe {
+        let ptr = (&val as *const u32) as *const f32;
+        *ptr
+    }
+}
+
+/// Reinterpreta os bits de dois unsigned de 32 bits como um float de double precision.
+fn dword_to_double(lo: u32, hi: u32) -> f64 {
+    let arr = [lo, hi];
+
+    unsafe {
+        let ptr = (arr.as_ptr() as *const u32) as *const f64;
+        *ptr
+    }
+
+    //f64::from_le_bytes((lo as u64 | ((hi as u64) << 32)).to_le_bytes())
+}
+
+/// Reinterpreta os bits de um float de single precision como um unsigned de 32 bits.
+fn single_to_word(val: f32) -> u32 {
+    unsafe {
+        let ptr = (&val as *const f32) as *const u32;
+        *ptr
+    }
+
+    //u32::from_le_bytes(val.to_le_bytes())
+}
+
+/// Reinterpreta os bits de um float de double precision como dois unsigned de 32 bits.
+fn double_to_dword(val: f64) -> (u32, u32) {
+    unsafe {
+        // Esse é o meu primeiro transmute útil.
+        // Me sinto profissional :p
+        let arr: [u32; 2] = std::mem::transmute(val);
+        (arr[0], arr[1])
+    }
+
+    //let dword = u64::from_le_bytes(val.to_le_bytes());
+    //((dword & 0xFFFFFFFF) as u32, ((dword & 0xFFFFFFFF00000000) >> 32) as u32)
 }
 
 impl std::ops::Index<Register> for Registers {
@@ -63,6 +117,20 @@ impl std::fmt::Display for Registers {
     }
 }
 
+impl std::ops::Index<FloatRegister> for FloatRegisters {
+    type Output = u32;
+
+    fn index(&self, index: FloatRegister) -> &Self::Output {
+        &self.0[index.0 as usize]
+    }
+}
+
+impl std::ops::IndexMut<FloatRegister> for FloatRegisters {
+    fn index_mut(&mut self, index: FloatRegister) -> &mut Self::Output {
+        &mut self.0[index.0 as usize]
+    }
+}
+
 /// Essa struct encapsula o estado da CPU, assim como a instância da memória.
 pub struct Cpu {
     /// 32 registradores de 32 bits.
@@ -86,6 +154,9 @@ pub struct Cpu {
 
     /// Os registradores de aritmetica.
     arith_regs: (u32, u32),
+
+    /// 32 registradores de ponto flutuante
+    float_regs: FloatRegisters,
 }
 
 impl Cpu {
@@ -101,6 +172,7 @@ impl Cpu {
             branch_to: None,
             halt: false,
             arith_regs: (0, 0),
+            float_regs: FloatRegisters([0; 32]),
         };
 
         cpu.regs[Register(28)] = gp;
@@ -137,7 +209,7 @@ impl Cpu {
         let word = self.mem.peek(self.pc)?;
 
         let instr = Instruction::decode(*word)?;
-        //println!("{:#010x}: {}", self.pc, instr);
+        println!("{:#010x}: {}", self.pc, instr);
         match instr {
             Instruction::NOP => {}
             Instruction::ADD(args) => {

@@ -36,6 +36,21 @@ impl std::fmt::Display for Register {
     }
 }
 
+/// Um índice para um registrador de ponto flutuante.
+pub struct FloatRegister(u32);
+
+impl std::convert::From<Register> for FloatRegister {
+    fn from(reg: Register) -> Self {
+        FloatRegister(reg.0)
+    }
+}
+
+impl std::fmt::Display for FloatRegister {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "$f{}", self.0)
+    }
+}
+
 /// Esse módulo contém a declaração das instruções e o decoder das mesmas.
 /// Eles são gerados automaticamente pela macro `instr_from_yaml` usando o
 /// arquivo `instructions.yml`, que está na raíz do projeto. A implementação

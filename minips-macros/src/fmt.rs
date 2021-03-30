@@ -27,6 +27,12 @@ fn generate_r_fmt((name, instr): (&String, &RInstruction)) -> TokenStream {
         };
 
         c.into()
+    } else if instr.move_cop.unwrap_or(true) {
+        let c = quote! {
+            write!(f, "{} {}", #ename, a.rd)
+        };
+        
+        c.into()
     } else if instr.has_args.unwrap_or(true) {
         let c = quote! {
             write!(f, "{} {}, {}, {}", #ename, a.rd, a.rs, a.rt)
