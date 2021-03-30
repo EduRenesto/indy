@@ -39,6 +39,30 @@ fn generate_j_decl((name, _instr): (&String, &JInstruction)) -> TokenStream {
     code.into()
 }
 
+/// Gera o *enum item* para uma instrução do tipo FR.
+fn generate_fr_decl((name, _instr): (&String, &FRInstruction)) -> TokenStream {
+    let ename = name.to_uppercase().replace(".", "_");
+    let ename_ident = Ident::new(&ename, Span::call_site());
+
+    let code = quote! {
+        #ename_ident (FRArgs),
+    };
+
+    code.into()
+}
+
+/// Gera o *enum item* para uma instrução do tipo FR.
+fn generate_fi_decl((name, _instr): (&String, &FIInstruction)) -> TokenStream {
+    let ename = name.to_uppercase();
+    let ename_ident = Ident::new(&ename, Span::call_site());
+
+    let code = quote! {
+        #ename_ident (FIArgs),
+    };
+
+    code.into()
+}
+
 /// Gera um enum declarando as instruções.
 pub(crate) fn generate_decl(instrs: &Instructions) -> TokenStream {
     let r = instrs.r
@@ -53,6 +77,14 @@ pub(crate) fn generate_decl(instrs: &Instructions) -> TokenStream {
         .iter()
         .map(generate_j_decl)
         .collect::<Vec<_>>();
+    let fr = instrs.fr
+        .iter()
+        .map(generate_fr_decl)
+        .collect::<Vec<_>>();
+    let fi = instrs.fi
+        .iter()
+        .map(generate_fi_decl)
+        .collect::<Vec<_>>();
 
     let code = quote! {
         /// As instruções MIPS, geradas a partir da macro `instr_from_yaml`.
@@ -65,6 +97,12 @@ pub(crate) fn generate_decl(instrs: &Instructions) -> TokenStream {
             *
             #(#j)
             *
+            #(#fr)
+            *
+            #(#fi)
+            *
+
+            //MFC1(Register, FloatRegister),
         }
     }.into();
 

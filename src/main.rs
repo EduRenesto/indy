@@ -94,8 +94,11 @@ fn main() -> Result<()> {
         // Desmonta o binário
         let executable = Executable::from_naked_files(matches.value_of("file").unwrap())?;
 
+        let mut addr = 0x00400000;
+
         for word in executable.text {
-            println!("{}", Instruction::decode(word)?);
+            println!("{:010x}:\t{:010x}\t{}", addr, word, Instruction::decode(word)?);
+            addr += 4;
         }
 
         Ok(())

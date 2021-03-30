@@ -113,6 +113,32 @@ fn generate_j_fmt((name, _instr): (&String, &JInstruction)) -> TokenStream {
     code.into()
 }
 
+/// Gera o *match pattern* e o pretty-print/disassembly de uma instrução do
+/// tipo FR.
+fn generate_fr_fmt((name, _instr): (&String, &FRInstruction)) -> TokenStream {
+    let ename = name.to_uppercase().replace(".", "_");
+    let ename_ident = Ident::new(&ename, Span::call_site());
+
+    let code = quote! {
+        &Instruction:: #ename_ident (ref a) => write!(f, "{} {}, {}, {}", #name, a.fd, a.fs, a.ft),
+    };
+
+    code.into()
+}
+
+/// Gera o *match pattern* e o pretty-print/disassembly de uma instrução do
+/// tipo FR.
+fn generate_fi_fmt((name, _instr): (&String, &FIInstruction)) -> TokenStream {
+    let ename = name.to_uppercase();
+    let ename_ident = Ident::new(&ename, Span::call_site());
+
+    let code = quote! {
+        &Instruction:: #ename_ident (ref a) => write!(f, "{} {} {:#x} # {:#x}", #name, a.ft, a.imm, a.imm * 4),
+    };
+
+    code.into()
+}
+
 /// Gera a implementação de `std::fmt::Display` para a enum `Instruction`. Ou
 /// seja, gera o pretty-printing/disassembly para as instruções.
 pub(crate) fn generate_fmt(instrs: &Instructions) -> TokenStream {
@@ -128,6 +154,14 @@ pub(crate) fn generate_fmt(instrs: &Instructions) -> TokenStream {
         .iter()
         .map(generate_j_fmt)
         .collect::<Vec<_>>();
+    let fr = instrs.fr
+        .iter()
+        .map(generate_fr_fmt)
+        .collect::<Vec<_>>();
+    let fi = instrs.fi
+        .iter()
+        .map(generate_fi_fmt)
+        .collect::<Vec<_>>();
 
     let code = quote! {
         impl std::fmt::Display for Instruction {
@@ -139,6 +173,10 @@ pub(crate) fn generate_fmt(instrs: &Instructions) -> TokenStream {
                     #(#i)
                     *
                     #(#j)
+                    *
+                    #(#fr)
+                    *
+                    #(#fi)
                     *
                 }
             }

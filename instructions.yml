@@ -22,6 +22,12 @@
 #   Opcional e defaulta para `false`.
 # - load_store: `true` se a instrução faz load/store.
 # - half_word: `true` se a instrução só tem
+#
+# Welp, depois da parte 2 do projeto essa solução não ficou tão ideal.
+# Já tive que adicionar duas instruções que não entram nesse pattern -- a mfc1 e a nop.
+# Pra isso, coloquei hardcoded nas partes relevantes da macro.
+#
+# TODO é arrumar isso.
 
 # Instrucoes R
 r:
@@ -150,3 +156,90 @@ j:
         opcode: 0x02
     jal:
         opcode: 0x03
+
+# Instrucoes FR
+fr:
+    # Aritmetica
+    add.s:
+        opcode: 0x11
+        fmt: 0x10
+        funct: 0x0
+    add.d:
+        opcode: 0x11
+        fmt: 0x11
+        funct: 0x0
+
+    sub.s:
+        opcode: 0x11
+        fmt: 0x10
+        funct: 0x01
+    sub.d:
+        opcode: 0x11
+        fmt: 0x11
+        funct: 0x01
+
+    mul.s:
+        opcode: 0x11
+        fmt: 0x10
+        funct: 0x02
+    mul.d:
+        opcode: 0x11
+        fmt: 0x11
+        funct: 0x02
+
+    div.s:
+        opcode: 0x11
+        fmt: 0x10
+        funct: 0x03
+    div.d:
+        opcode: 0x11
+        fmt: 0x11
+        funct: 0x03
+
+    # Comparacao
+    c.eq.s:
+        opcode: 0x11
+        fmt: 0x10
+        funct: 0x32
+    c.lt.s:
+        opcode: 0x11
+        fmt: 0x10
+        funct: 0x3c
+    c.le.s:
+        opcode: 0x11
+        fmt: 0x11
+        funct: 0x3e
+    c.eq.d:
+        opcode: 0x11
+        fmt: 0x11
+        funct: 0x32
+    c.lt.d:
+        opcode: 0x11
+        fmt: 0x11
+        funct: 0x3c
+    c.le.d:
+        opcode: 0x11
+        fmt: 0x11
+        funct: 0x3e
+
+    # segura o shoehorn!
+    mfc1:
+        opcode: 0x11
+        fmt: 0x00
+        funct: 0x00
+    mtc1:
+        opcode: 0x11
+        fmt: 0x10
+        funct: 0x06
+
+
+# Instrucoes FI
+fi:
+    bclt:
+        opcode: 0x11
+        fmt: 0x08
+        ft: 0x01
+    bclf:
+        opcode: 0x11
+        fmt: 0x08
+        ft: 0x00

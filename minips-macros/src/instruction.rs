@@ -36,10 +36,29 @@ pub(crate) struct JInstruction {
     pub(crate) opcode: u32,
 }
 
+/// Uma instrução do tipo FR.
+#[derive(Deserialize)]
+pub(crate) struct FRInstruction {
+    pub(crate) opcode: u32,
+    pub(crate) fmt: u32,
+    pub(crate) funct: u32,
+}
+
+/// Uma instrução do tipo FI.
+#[derive(Deserialize)]
+pub(crate) struct FIInstruction {
+    pub(crate) opcode: u32,
+    pub(crate) fmt: u32,
+    pub(crate) ft: u32,
+}
+
 /// O conjunto de todas as instruções do arquivo YAML.
 #[derive(Deserialize)]
 pub(crate) struct Instructions {
     pub r: HashMap<String, RInstruction>,
     pub i: HashMap<String, IInstruction>,
     pub j: HashMap<String, JInstruction>,
+
+    pub fr: HashMap<String, FRInstruction>,
+    pub fi: HashMap<String, FIInstruction>,
 }

@@ -43,7 +43,7 @@ pub fn instr_from_yaml(item: TokenStream) -> TokenStream {
 
     let code = quote! {
         use color_eyre::eyre::{ eyre, Result };
-        use crate::emulator::Register;
+        use crate::emulator::{ Register, FloatRegister };
         use crate::emulator::instr::sign_extend_cast;
 
         /// Operandos contidos numa intrução do tipo R.
@@ -59,6 +59,20 @@ pub fn instr_from_yaml(item: TokenStream) -> TokenStream {
             pub rs: Register,
             pub rt: Register,
             pub imm: u32,
+        }
+
+        /// Operandos contidos numa instrução do tipo FR.
+        pub struct FRArgs {
+            ft: FloatRegister,
+            fs: FloatRegister,
+            fd: FloatRegister,
+            funct: u32,
+        }
+
+        /// Operandos contidos numa instrução do tipo FI.
+        pub struct FIArgs {
+            ft: FloatRegister,
+            imm: u32,
         }
 
         #decl
