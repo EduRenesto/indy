@@ -69,6 +69,12 @@ pub struct Cpu {
     /// O program counter.
     pc: u32,
 
+    /// É verdadeiro se a instrução atual está num branch delay slot.
+    in_delay_slot: bool,
+
+    /// Endereço para qual o branch pulará.
+    branch_to: Option<u32>,
+
     /// A CPU terminou a execução?
     halt: bool,
 }
@@ -82,6 +88,8 @@ impl Cpu {
             regs: Registers([0; 32]),
             mem: Memory::new(),
             pc: start,
+            in_delay_slot: false,
+            branch_to: None,
             halt: false,
         };
 
@@ -108,6 +116,14 @@ impl Cpu {
     /// Aqui se encontram as implementações das instruções.
     #[allow(unreachable_patterns)]
     pub fn cycle(&mut self) -> Result<()> {
+        match self.branch_to {
+            Some(target) if target != self.pc => {
+                self.in_delay_slot = true;
+                //println!("Inside branch delay slot! Target: {:#010x}", target);
+            },
+            _ => {}
+        }
+
         let word = self.mem.peek(self.pc)?;
 
         let instr = Instruction::decode(*word)?;
@@ -183,18 +199,19 @@ impl Cpu {
             Instruction::BEQ(args) => {
                 if self.regs[args.rs] == self.regs[args.rt] {
                     let target = branch_addr(args.imm);
-                    self.pc = (self.pc as i32 + target) as u32;
+                    //self.pc = (self.pc as i32 + target) as u32;
+                    self.branch_to = Some((self.pc as i32 + target + 4) as u32);
                 }
             }
             Instruction::BNE(args) => {
                 if self.regs[args.rs] != self.regs[args.rt] {
                     let target = branch_addr(args.imm);
-                    self.pc = (self.pc as i32 + target) as u32;
+                    self.branch_to = Some((self.pc as i32 + target + 4) as u32);
                 }
             }
             Instruction::J(addr) => {
                 let target = jump_addr(self.pc, addr);
-                self.pc = target - 4;
+                self.branch_to = Some(target);
             }
             Instruction::SLT(args) => {
                 self.regs[args.rd] =
@@ -205,12 +222,12 @@ impl Cpu {
                     };
             }
             Instruction::JR(args) => {
-                self.pc = self.regs[args.rs];
+                self.branch_to = Some(self.regs[args.rs] + 4);
             }
             Instruction::JAL(addr) => {
-                self.regs[Register(31)] = self.pc;
+                self.regs[Register(31)] = self.pc + 4;
                 let target = jump_addr(self.pc, addr);
-                self.pc = target - 4;
+                self.branch_to = Some(target);
             }
             Instruction::SLL(args) => {
                 self.regs[args.rd] = self.regs[args.rt] << args.shamt;
@@ -245,12 +262,21 @@ impl Cpu {
                 // "(...) is the address of the *second* instruction following the branch (...)"
                 // por isso o + 4
                 self.regs[args.rd] = self.pc + 4;
-                self.pc = self.regs[args.rs] - 4;
+                self.branch_to = Some(self.regs[args.rs]);
             }
             a => return Err(eyre!("Instruction {} not implemented yet!", a)),
         }
 
-        self.pc += 4;
+        // TODO `branch_to.is_some()` é invariante, tirar depois
+        //
+        // ...pq não posso usar && com `if let`? Deve ter algum RFC pra isso
+        if self.in_delay_slot && self.branch_to.is_some() {
+            self.pc = self.branch_to.unwrap();
+            self.in_delay_slot = false;
+            self.branch_to = None;
+        } else {
+            self.pc += 4;
+        }
 
         Ok(())
     }
