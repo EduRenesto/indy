@@ -229,7 +229,7 @@ fr:
         funct: 0x00
     mtc1:
         opcode: 0x11
-        fmt: 0x10
+        fmt: 0x04
         funct: 0x00
 
     # essas nao estao no greencard

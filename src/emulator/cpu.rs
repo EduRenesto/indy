@@ -209,7 +209,7 @@ impl Cpu {
         let word = self.mem.peek(self.pc)?;
 
         let instr = Instruction::decode(*word)?;
-        println!("{:#010x}: {}", self.pc, instr);
+        //println!("{:#010x}: {}", self.pc, instr);
         match instr {
             Instruction::NOP => {}
             Instruction::ADD(args) => {
