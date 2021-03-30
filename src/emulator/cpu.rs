@@ -3,15 +3,15 @@
 //! Note que um tema comum nesse arquivo é a utilização do idiom `newtype`
 //! (mesma ideia que em Haskell :p).
 
+use super::FloatRegister;
 use super::Instruction;
 use super::Memory;
 use super::Register;
-use super::FloatRegister;
 
 use super::instr::{branch_addr, jump_addr, sign_extend, sign_extend_cast};
 
-use std::io::Write;
 use std::convert::TryInto;
+use std::io::Write;
 
 use color_eyre::eyre::{eyre, Result};
 
@@ -202,7 +202,7 @@ impl Cpu {
             Some(target) if target != self.pc => {
                 self.in_delay_slot = true;
                 //println!("Inside branch delay slot! Target: {:#010x}", target);
-            },
+            }
             _ => {}
         }
 
@@ -231,7 +231,13 @@ impl Cpu {
                         print!("{}", word_to_single(self.float_regs[FloatRegister(12)]));
                     }
                     3 => {
-                        print!("{}", dword_to_double(self.float_regs[FloatRegister(12)], self.float_regs[FloatRegister(13)]));
+                        print!(
+                            "{}",
+                            dword_to_double(
+                                self.float_regs[FloatRegister(12)],
+                                self.float_regs[FloatRegister(13)]
+                            )
+                        );
                     }
                     4 => {
                         let mut addr = self.regs[Register(4)];
