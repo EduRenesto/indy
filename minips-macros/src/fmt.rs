@@ -11,37 +11,37 @@ fn generate_r_fmt((name, instr): (&String, &RInstruction)) -> TokenStream {
 
     let fmt: TokenStream = if instr.shift.unwrap_or(false) {
         let c = quote! {
-            write!(f, "{} {}, {}, {}", #ename, a.rd, a.rt, a.shamt)
+            write!(f, "{} {}, {}, {}", #name, a.rd, a.rt, a.shamt)
         };
 
         c.into()
     } else if instr.one_operand.unwrap_or(false) {
         let c = quote! {
-            write!(f, "{} {}", #ename, a.rs)
+            write!(f, "{} {}", #name, a.rs)
         };
 
         c.into()
     } else if instr.two_operands.unwrap_or(false) {
         let c = quote! {
-            write!(f, "{} {}, {}", #ename, a.rd, a.rs)
+            write!(f, "{} {}, {}", #name, a.rd, a.rs)
         };
 
         c.into()
     } else if instr.move_cop.unwrap_or(true) {
         let c = quote! {
-            write!(f, "{} {}", #ename, a.rd)
+            write!(f, "{} {}", #name, a.rd)
         };
         
         c.into()
     } else if instr.has_args.unwrap_or(true) {
         let c = quote! {
-            write!(f, "{} {}, {}, {}", #ename, a.rd, a.rs, a.rt)
+            write!(f, "{} {}, {}, {}", #name, a.rd, a.rs, a.rt)
         };
         
         c.into()
     } else {
         let c = quote! {
-            write!(f, "{}", #ename)
+            write!(f, "{}", #name)
         };
 
         c.into()
@@ -63,31 +63,31 @@ fn generate_i_fmt((name, instr): (&String, &IInstruction)) -> TokenStream {
 
     let fmt: TokenStream = if instr.load_store.unwrap_or(false) {
         let c = quote! {
-            write!(f, "{} {}, {:#x}({})", #ename, a.rt, sign_extend_cast(a.imm, 16), a.rs)
+            write!(f, "{} {}, {:#x}({})", #name, a.rt, sign_extend_cast(a.imm, 16), a.rs)
         };
         
         c.into()
     } else if instr.half_word.unwrap_or(false) {
         let c = quote! {
-            write!(f, "{} {}, {}", #ename, a.rt, a.imm)
+            write!(f, "{} {}, {}", #name, a.rt, a.imm)
         };
         
         c.into()
     } else if instr.invert.unwrap_or(false) {
         let c = quote! {
-            write!(f, "{} {}, {}, {}", #ename, a.rs, a.rt, sign_extend_cast(a.imm, 16))
+            write!(f, "{} {}, {}, {}", #name, a.rs, a.rt, sign_extend_cast(a.imm, 16))
         };
         
         c.into()
     } else if instr.sign_ext.unwrap_or(true) {
         let c = quote! {
-            write!(f, "{} {}, {}, {}", #ename, a.rt, a.rs, sign_extend_cast(a.imm, 16))
+            write!(f, "{} {}, {}, {}", #name, a.rt, a.rs, sign_extend_cast(a.imm, 16))
         };
         
         c.into()
     } else {
         let c = quote! {
-            write!(f, "{} {}, {}, {}", #ename, a.rt, a.rs, a.imm)
+            write!(f, "{} {}, {}, {}", #name, a.rt, a.rs, a.imm)
         };
 
         c.into()
@@ -107,7 +107,7 @@ fn generate_j_fmt((name, _instr): (&String, &JInstruction)) -> TokenStream {
     let ename_ident = Ident::new(&ename, Span::call_site());
 
     let code = quote! {
-        &Instruction:: #ename_ident (ref a) => write!(f, "{} {:#x} # {:#x}", #ename, a, a * 4),
+        &Instruction:: #ename_ident (ref a) => write!(f, "{} {:#x} # {:#x}", #name, a, a * 4),
     };
 
     code.into()
@@ -167,7 +167,7 @@ pub(crate) fn generate_fmt(instrs: &Instructions) -> TokenStream {
         impl std::fmt::Display for Instruction {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
                 match self {
-                    &Instruction::NOP => write!(f, "NOP"),
+                    &Instruction::NOP => write!(f, "nop"),
                     #(#r)
                     *
                     #(#i)
