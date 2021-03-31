@@ -437,6 +437,63 @@ impl Cpu {
             Instruction::MTC1(args) => {
                 self.float_regs[args.fs] = self.regs[args.ft.into()];
             }
+            Instruction::CVT_D_W(args) => {
+                let val = self.float_regs[args.fs] as f64;
+                let (lo, hi) = double_to_dword(val);
+                self.float_regs[args.fd] = lo;
+                self.float_regs[args.fd + 1] = hi;
+            }
+            Instruction::ADD_D(args) => {
+                let x = dword_to_double(self.float_regs[args.fs], self.float_regs[args.fs + 1]);
+                let y = dword_to_double(self.float_regs[args.ft], self.float_regs[args.ft + 1]);
+
+                let (lo, hi) = double_to_dword(x + y);
+
+                self.float_regs[args.fd] = lo;
+                self.float_regs[args.fd + 1] = hi;
+            }
+            Instruction::XOR(args) => {
+                self.regs[args.rd] = self.regs[args.rs] ^ self.regs[args.rt];
+            }
+            Instruction::MUL_D(args) => {
+                let x = dword_to_double(self.float_regs[args.fs], self.float_regs[args.fs + 1]);
+                let y = dword_to_double(self.float_regs[args.ft], self.float_regs[args.ft + 1]);
+
+                let (lo, hi) = double_to_dword(x * y);
+
+                self.float_regs[args.fd] = lo;
+                self.float_regs[args.fd + 1] = hi;
+            }
+            Instruction::DIV_D(args) => {
+                let x = dword_to_double(self.float_regs[args.fs], self.float_regs[args.fs + 1]);
+                let y = dword_to_double(self.float_regs[args.ft], self.float_regs[args.ft + 1]);
+
+                let (lo, hi) = double_to_dword(x / y);
+
+                self.float_regs[args.fd] = lo;
+                self.float_regs[args.fd + 1] = hi;
+            }
+            Instruction::CVT_S_D(args) => {
+                let val = dword_to_double(self.float_regs[args.fs], self.float_regs[args.fs + 1]);
+                let val = val as f32;
+                self.float_regs[args.fd] = single_to_word(val);
+            }
+            Instruction::MUL_S(args) => {
+                let x = word_to_single(self.float_regs[args.fs]);
+                let y = word_to_single(self.float_regs[args.ft]);
+
+                let val = x * y;
+
+                self.float_regs[args.fd] = single_to_word(val);
+            }
+            Instruction::ADD_S(args) => {
+                let x = word_to_single(self.float_regs[args.fs]);
+                let y = word_to_single(self.float_regs[args.ft]);
+
+                let val = x + y;
+
+                self.float_regs[args.fd] = single_to_word(val);
+            }
             a => return Err(eyre!("Instruction {} not implemented yet!", a)),
         }
 
