@@ -94,6 +94,9 @@ r:
         funct: 0x0d
         has_args: false
 
+    xor:
+        funct: 0x26
+
 # Instrucoes I
 i:
     addi:
@@ -241,7 +244,7 @@ fr:
         fmt: 0x04
         funct: 0x00
         two_operands: true
-        first_is_float: false
+        first_is_float: true
 
     # essas nao estao no greencard
     mov.s:
@@ -253,6 +256,18 @@ fr:
         opcode: 0x11
         fmt: 0x11
         funct: 0x06
+        two_operands: true
+
+    # conversao
+    cvt.d.w:
+        opcode: 0x11
+        fmt: 0x14
+        funct: 0x21
+        two_operands: true
+    cvt.s.d:
+        opcode: 0x11
+        fmt: 0x11
+        funct: 0x20
         two_operands: true
 
 

@@ -197,7 +197,7 @@ fn generate_f_parse(fr: &HashMap<String, FRInstruction>, fi: &HashMap<String, FI
                 *,
                 #(#fi_cases),
                 *,
-                _ => Err(eyre!("Unknown F instruction: {:#x}/{:#x}", opcode, fmt)),
+                _ => Err(eyre!("Unknown F instruction: {:#x}/{:#x}/{:#x}", opcode, fmt, funct)),
             }
         }
     }.into();

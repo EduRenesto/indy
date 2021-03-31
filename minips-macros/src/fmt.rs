@@ -75,7 +75,7 @@ fn generate_i_fmt((name, instr): (&String, &IInstruction)) -> TokenStream {
         c.into()
     } else if instr.half_word.unwrap_or(false) {
         let c = quote! {
-            write!(f, "{} {}, {}", #name, a.rt, a.imm)
+            write!(f, "{} {}, {}", #name, a.rt, sign_extend_cast(a.imm, 16))
         };
         
         c.into()
