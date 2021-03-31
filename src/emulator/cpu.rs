@@ -28,12 +28,20 @@ struct FloatRegisters([u32; 32]);
 
 /// Reinterpreta os bits de um unsigned de 32 bits como um signed de 32 bits.
 fn as_signed(val: u32) -> i32 {
-    i32::from_le_bytes(val.to_le_bytes())
+    //i32::from_le_bytes(val.to_le_bytes())
+    unsafe {
+        let ptr = (&val as *const u32) as *const i32;
+        *ptr
+    }
 }
 
 /// Reinterpreta os bits de um signed de 32 bits como um unsigned de 32 bits.
 fn as_unsigned(val: i32) -> u32 {
-    u32::from_le_bytes(val.to_le_bytes())
+    //u32::from_le_bytes(val.to_le_bytes())
+    unsafe {
+        let ptr = (&val as *const i32) as *const u32;
+        *ptr
+    }
 }
 
 /// Reinterpreta os bits de um unsigned de 32 bits como um float de single precision.
