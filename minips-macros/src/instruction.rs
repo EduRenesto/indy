@@ -29,6 +29,7 @@ pub(crate) struct IInstruction {
     pub(crate) half_word: Option<bool>,
     pub(crate) invert: Option<bool>,
     pub(crate) target_is_float: Option<bool>,
+    pub(crate) two_operands: Option<bool>,
 }
 
 /// Uma instrução do tipo J.

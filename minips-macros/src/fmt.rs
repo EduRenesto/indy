@@ -85,6 +85,12 @@ fn generate_i_fmt((name, instr): (&String, &IInstruction)) -> TokenStream {
         };
         
         c.into()
+    } else if instr.two_operands.unwrap_or(false) {
+        let c = quote! {
+            write!(f, "{} {}, {}", #name, a.rs, sign_extend_cast(a.imm, 16))
+        };
+        
+        c.into()
     } else if instr.sign_ext.unwrap_or(true) {
         let c = quote! {
             write!(f, "{} {}, {}, {}", #name, a.rt, a.rs, sign_extend_cast(a.imm, 16))

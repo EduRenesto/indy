@@ -143,6 +143,9 @@ i:
     sw:
         opcode: 0x2B
         load_store: true
+    blez:
+        opcode: 0x06
+        two_operands: true
 
     # Arithmetic Core Instruction Set
     lwc1:
