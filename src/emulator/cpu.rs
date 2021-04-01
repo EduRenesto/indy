@@ -330,6 +330,12 @@ impl Cpu {
                     self.branch_to = Some((self.pc as i32 + target + 4) as u32);
                 }
             }
+            Instruction::BLEZ(args) => {
+                if as_signed(self.regs[args.rs]) <= 0 {
+                    let target = branch_addr(args.imm);
+                    self.branch_to = Some((self.pc as i32 + target + 4) as u32);
+                }
+            }
             Instruction::J(addr) => {
                 let target = jump_addr(self.pc, addr);
                 self.branch_to = Some(target);
@@ -337,6 +343,14 @@ impl Cpu {
             Instruction::SLT(args) => {
                 self.regs[args.rd] =
                     if as_signed(self.regs[args.rs]) < as_signed(self.regs[args.rt]) {
+                        1
+                    } else {
+                        0
+                    };
+            }
+            Instruction::SLTU(args) => {
+                self.regs[args.rd] =
+                    if self.regs[args.rs] < self.regs[args.rt] {
                         1
                     } else {
                         0
@@ -518,6 +532,9 @@ impl Cpu {
                 let val = dword_to_double(self.float_regs[args.fs], self.float_regs[args.fs + 1]);
                 let val = val as f32;
                 self.float_regs[args.fd] = single_to_word(val);
+            }
+            Instruction::AND(args) => {
+                self.regs[args.rd] = self.regs[args.rs] & self.regs[args.rt];
             }
             a => return Err(eyre!("Instruction {} not implemented yet!", a)),
         }
