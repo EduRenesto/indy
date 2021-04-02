@@ -146,6 +146,9 @@ i:
     blez:
         opcode: 0x06
         two_operands: true
+    bal:
+        opcode: 0x01
+        two_operands: true
 
     # Arithmetic Core Instruction Set
     lwc1:
