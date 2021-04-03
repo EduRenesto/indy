@@ -9,6 +9,7 @@
 //! - instruction: parsing do arquivo yaml
 //! - fmt: pretty-printing/disassembly
 //! - parse: decoding
+//! - kind: runtime info sobre o tipo da instrucao
 
 use proc_macro::TokenStream;
 use quote::quote;
@@ -19,6 +20,7 @@ mod decl;
 mod instruction;
 mod fmt;
 mod parse;
+mod kind;
 
 use instruction::Instructions;
 
@@ -73,6 +75,16 @@ pub fn instr_from_yaml(item: TokenStream) -> TokenStream {
         pub struct FIArgs {
             pub ft: FloatRegister,
             pub imm: u32,
+        }
+
+        /// O tipo de uma instrução.
+        #[repr(usize)]
+        pub enum Kind {
+            R,
+            I,
+            J,
+            FR,
+            FI
         }
 
         #decl

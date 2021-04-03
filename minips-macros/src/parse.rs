@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::instruction::*;
+use crate::kind::generate_kind;
 
 use quote::quote;
 use proc_macro2::{ Span, Ident, TokenStream };
@@ -214,6 +215,8 @@ pub(crate) fn generate_parse(instrs: &Instructions) -> TokenStream {
 
     let parse_f = generate_f_parse(&instrs.fr, &instrs.fi);
 
+    let kind = generate_kind(&instrs);
+
     let code = quote! {
         #parse_r
 
@@ -240,6 +243,8 @@ pub(crate) fn generate_parse(instrs: &Instructions) -> TokenStream {
                     _ => decode_i_instr(word),
                 }
             }
+
+            #kind
         }
     }.into();
 
