@@ -10,6 +10,8 @@ use super::Register;
 
 use super::instr::{branch_addr, jump_addr, sign_extend, sign_extend_cast};
 
+use super::stats::StatsReporter;
+
 use std::convert::TryInto;
 use std::io::Write;
 
@@ -163,8 +165,11 @@ pub struct Cpu {
     /// Os registradores de aritmetica.
     arith_regs: (u32, u32),
 
-    /// 32 registradores de ponto flutuante
+    /// 32 registradores de ponto flutuante.
     float_regs: FloatRegisters,
+
+    /// Contador de estatísticas.
+    stats: StatsReporter,
 }
 
 impl Cpu {
@@ -181,6 +186,7 @@ impl Cpu {
             halt: false,
             arith_regs: (0, 0),
             float_regs: FloatRegisters([0; 32]),
+            stats: StatsReporter::new(),
         };
 
         cpu.regs[Register(28)] = gp;
@@ -217,6 +223,7 @@ impl Cpu {
         let word = self.mem.peek(self.pc)?;
 
         let instr = Instruction::decode(*word)?;
+        self.stats.add_instr(&instr);
         //println!("{:#010x}: {}", self.pc, instr);
         match instr {
             Instruction::NOP => {}
@@ -288,7 +295,7 @@ impl Cpu {
                     }
                     10 => {
                         self.halt = true;
-                        println!("syscall: halted");
+                        self.stats.finish();
                     }
                     11 => {
                         print!("{}", self.regs[Register(4)] as u8 as char);
@@ -556,9 +563,13 @@ impl Cpu {
     /// Inicia a execução e continua até que ocorra um erro ou a syscall de
     /// parada seja chamada.
     pub fn run(&mut self) -> Result<()> {
+        self.stats.start();
+
         while !self.halt {
             self.cycle()?;
         }
+
+        self.stats.print_stats()?;
 
         Ok(())
     }

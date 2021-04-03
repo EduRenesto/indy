@@ -3,9 +3,8 @@ use crate::instruction::*;
 use quote::quote;
 use proc_macro2::{ Span, Ident, TokenStream };
 
-/// Gera o *match pattern* e o pretty-print/disassembly de uma instrução do
-/// tipo R.
-fn generate_r_kind((name, instr): (&String, &RInstruction)) -> TokenStream {
+/// Gera o *match pattern* de uma instrução do tipo R.
+fn generate_r_kind((name, _instr): (&String, &RInstruction)) -> TokenStream {
     let ename = name.to_uppercase();
     let ename_ident = Ident::new(&ename, Span::call_site());
 
@@ -17,9 +16,8 @@ fn generate_r_kind((name, instr): (&String, &RInstruction)) -> TokenStream {
 }
 
 
-/// Gera o *match pattern* e o pretty-print/disassembly de uma instrução do
-/// tipo I.
-fn generate_i_kind((name, instr): (&String, &IInstruction)) -> TokenStream {
+/// Gera o *match pattern* de uma instrução do tipo I.
+fn generate_i_kind((name, _instr): (&String, &IInstruction)) -> TokenStream {
     let ename = name.to_uppercase();
     let ename_ident = Ident::new(&ename, Span::call_site());
 
@@ -30,8 +28,7 @@ fn generate_i_kind((name, instr): (&String, &IInstruction)) -> TokenStream {
     code.into()
 }
 
-/// Gera o *match pattern* e o pretty-print/disassembly de uma instrução do
-/// tipo J.
+/// Gera o *match pattern* de uma instrução do tipo J.
 fn generate_j_kind((name, _instr): (&String, &JInstruction)) -> TokenStream {
     let ename = name.to_uppercase();
     let ename_ident = Ident::new(&ename, Span::call_site());
@@ -43,9 +40,8 @@ fn generate_j_kind((name, _instr): (&String, &JInstruction)) -> TokenStream {
     code.into()
 }
 
-/// Gera o *match pattern* e o pretty-print/disassembly de uma instrução do
-/// tipo FR.
-fn generate_fr_kind((name, instr): (&String, &FRInstruction)) -> TokenStream {
+/// Gera o *match pattern* de uma instrução do tipo FR.
+fn generate_fr_kind((name, _instr): (&String, &FRInstruction)) -> TokenStream {
     let ename = name.to_uppercase().replace(".", "_");
     let ename_ident = Ident::new(&ename, Span::call_site());
 
@@ -56,8 +52,7 @@ fn generate_fr_kind((name, instr): (&String, &FRInstruction)) -> TokenStream {
     code.into()
 }
 
-/// Gera o *match pattern* e o pretty-print/disassembly de uma instrução do
-/// tipo FR.
+/// Gera o *match pattern* de uma instrução do tipo FI.
 fn generate_fi_kind((name, _instr): (&String, &FIInstruction)) -> TokenStream {
     let ename = name.to_uppercase().replace(".", "_");
     let ename_ident = Ident::new(&ename, Span::call_site());
@@ -69,8 +64,7 @@ fn generate_fi_kind((name, _instr): (&String, &FIInstruction)) -> TokenStream {
     code.into()
 }
 
-/// Gera a implementação de `std::fmt::Display` para a enum `Instruction`. Ou
-/// seja, gera o pretty-printing/disassembly para as instruções.
+/// Gera a implementacao de `kind()` para cada instrucao.
 pub(crate) fn generate_kind(instrs: &Instructions) -> TokenStream {
     let r = instrs.r
         .iter()

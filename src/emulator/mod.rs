@@ -3,6 +3,7 @@
 pub(crate) mod cpu;
 pub(crate) mod instr;
 pub(crate) mod memory;
+pub(crate) mod stats;
 
 // Re-exports pra ficar melhor de usar ao longo do código
 pub use cpu::Cpu;
