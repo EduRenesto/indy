@@ -34,7 +34,7 @@ fn generate_j_kind((name, _instr): (&String, &JInstruction)) -> TokenStream {
     let ename_ident = Ident::new(&ename, Span::call_site());
 
     let code = quote! {
-        &Instruction:: #ename_ident (_) => Kind::I,
+        &Instruction:: #ename_ident (_) => Kind::J,
     };
 
     code.into()
