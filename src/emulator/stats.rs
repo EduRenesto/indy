@@ -43,6 +43,7 @@ impl StatsReporter {
 
         let ips = total as f64 / delta.as_secs_f64();
 
+        println!("");
         println!("Execution finished successfully!");
         println!("--------------------------");
         println!("Instruction count: {} (R: {} I: {} J: {} FR: {} FI: {})",
@@ -53,8 +54,8 @@ impl StatsReporter {
             self.n_instructions[3],
             self.n_instructions[4],
         );
-        println!("Simulation time: {:.2} sec.", delta.as_secs_f32());
-        println!("Average IPS: {:.2} sec.", ips);
+        println!("Simulation time: {:.2} sec", delta.as_secs_f32());
+        println!("Average IPS: {:.2}", ips);
 
         Ok(())
     }
