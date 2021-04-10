@@ -77,8 +77,10 @@ r:
         move_cop: true
     mult:
         funct: 0x18
+        two_operands_alt: true
     multu:
         funct: 0x19
+        two_operands_alt: true
     sra:
         funct: 0x03
 

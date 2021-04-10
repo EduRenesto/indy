@@ -17,6 +17,7 @@ pub(crate) struct RInstruction {
     pub(crate) shift: Option<bool>,
     pub(crate) one_operand: Option<bool>,
     pub(crate) two_operands: Option<bool>,
+    pub(crate) two_operands_alt: Option<bool>,
     pub(crate) move_cop: Option<bool>,
 }
 

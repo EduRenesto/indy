@@ -27,6 +27,12 @@ fn generate_r_fmt((name, instr): (&String, &RInstruction)) -> TokenStream {
         };
 
         c.into()
+    } else if instr.two_operands_alt.unwrap_or(false) {
+        let c = quote! {
+            write!(f, "{} {}, {}", #name, a.rs, a.rt)
+        };
+
+        c.into()
     } else if instr.move_cop.unwrap_or(false) {
         let c = quote! {
             write!(f, "{} {}", #name, a.rd)
@@ -64,11 +70,11 @@ fn generate_i_fmt((name, instr): (&String, &IInstruction)) -> TokenStream {
     let fmt: TokenStream = if instr.load_store.unwrap_or(false) {
         let c = if instr.target_is_float.unwrap_or(false) {
             quote! {
-                write!(f, "{} {}, {:#x}({})", #name, FloatRegister::from(a.rt), sign_extend_cast(a.imm, 16), a.rs)
+                write!(f, "{} {}, {}({})  # {2:#010x}", #name, FloatRegister::from(a.rt), sign_extend_cast(a.imm, 16), a.rs)
             }
         } else {
             quote! {
-                write!(f, "{} {}, {:#x}({})", #name, a.rt, sign_extend_cast(a.imm, 16), a.rs)
+                write!(f, "{} {}, {}({})  # {2:#010x}", #name, a.rt, sign_extend_cast(a.imm, 16), a.rs)
             }
         };
 
