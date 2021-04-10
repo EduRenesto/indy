@@ -1,4 +1,4 @@
 %.pdf: %.md
 	pandoc $^ -o $@
 
-all: relatorio.pdf
+all: relatorio.pdf changelog.fase2.pdf

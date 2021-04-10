@@ -64,6 +64,12 @@ Como comentei acima, estou utilizando o projeto para experimentos. Nessa
 seção, que atualizarei conforme novos experimentos forem surgindo, irei
 descrevê-los brevemente.
 
+### Changelog
+
+Além do relatório, existe um `relatorio/changelog.fase2.pdf`. Nele, descrevo
+com mais detalhe do que no relatório as mudanças feitas no código entre a fase
+I e a fase II.
+
 ### Suporte a arquivos ELF
 
 Por meio da crate `goblin`, o emulador consegue carregar e executar programas
@@ -109,3 +115,6 @@ um framebuffer em memória para brincar com uns gráficos.
       Kernel, e o `decodeelf` já desconstrói ele por inteiro. Para considerar
       conseguir rodar Linux, é preciso implementar no mínimo exceções (o
       coprocessador 0 em específico).
+- Does it run *Spyro: Year Of The Dragon*?
+    - Esse emulador, durante o próximo recesso, com certeza virará um emulador
+      de PlayStation 1!
