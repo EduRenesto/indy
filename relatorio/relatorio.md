@@ -18,7 +18,7 @@ lang: pt
 - **Nome:** Eduardo Renesto Estanquiere
 - **RA:** 11201810086
 - **Usuário do GitHub:** `EduRenesto`
-- **Link do vídeo:** [https://www.youtube.com/watch?v=ObtdlKSBpvQ](https://www.youtube.com/watch?v=ObtdlKSBpvQ) TODO
+- **Link do vídeo:** [https://www.youtube.com/watch?v=6ZF_8dQqiiI](https://www.youtube.com/watch?v=6ZF_8dQqiiI)
 
 # Introdução
 

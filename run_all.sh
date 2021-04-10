@@ -23,5 +23,5 @@ for i in ${tests[@]}; do
     echo -e "\e[31m=> Rodando $i...\e[0m"
     target/release/minips-rs run res/$i
     echo ""
-    sleep 2
+    sleep 1
 done
