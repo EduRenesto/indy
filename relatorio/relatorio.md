@@ -1,5 +1,5 @@
 ---
-title: MINIPS Fase I - Relatório
+title: MINIPS Fase II - Relatório
 author: Eduardo Renesto
 date: Arquitetura de Computadores 2021.1 - Prof. Dr. Emilio Francesquini
 fontfamily: libertinus
@@ -10,6 +10,7 @@ geometry:
     - right=2cm
 papersize: a4
 colorlinks: true
+lang: pt
 ---
 
 # Dados
@@ -17,131 +18,110 @@ colorlinks: true
 - **Nome:** Eduardo Renesto Estanquiere
 - **RA:** 11201810086
 - **Usuário do GitHub:** `EduRenesto`
-- **Link do vídeo:** [https://www.youtube.com/watch?v=ObtdlKSBpvQ](https://www.youtube.com/watch?v=ObtdlKSBpvQ)
+- **Link do vídeo:** [https://www.youtube.com/watch?v=ObtdlKSBpvQ](https://www.youtube.com/watch?v=ObtdlKSBpvQ) TODO
 
 # Introdução
 
-Nesse texto apresento minha experiência desenvolvendo a primeira fase do
-`minips-rs` [^1], minha implementação do projeto do quadrimestre da disciplina.
+Nesse texto apresento a segunda fase da implementação do `minips-rs`. Essa
+fase se resume em apenas duas grandes features: o *branch delay slot* e a
+implementação de partes do coprocessador 1 (responsável por operações de ponto
+flutuante).
 
-[^1]: nome sujeito a mudanças (eventualmente)
+Em geral, essa fase foi muito menos trabalhosa que a anterior -- o emulador já
+executava todas as entradas depois de cerca de dois dias de trabalho.
 
-Antes de tudo, afirmo que me diverti bastante no processo. Antes da
-disciplina, eu já havia começado a escrever um emulador para o *NES*, e tinha
-uma implementação do MOS 6502 razoavelmente funcional. Assim, já tinha em
-mente uma ideia de arquitetura para esse projeto, além de uns "reflexos" sobre
-o que fazer e não fazer.
+# Desenvolvimento
 
-# Dificuldades
+## Infraestrutura
 
-Embora o desenvolvimento tenha sido relativamente tranquilo, as minhas maiores
-dificuldades se deram durante a implementação dos branches. Entender o cálculo
-do alvo, apesar de ser simples, olhando em retrospecto, demorou um pouco: tive
-alguns problemas ao levar em consideração que, na minha implementação, o
-*program counter* sempre é incrementado em 4 a cada instrução,
-independentemente de qual foi executada. Eventualmente, comparando a execução
-do meu código com o `minips` de referência, consegui fazê-los funcionar.
+Nessa fase, todo o esforço feito no final da última fase para deixar a
+declaração de instruções automática foi pago. Como as instruções de ponto
+flutuante são encodadas de maneira diferente[^1], foi necessário fazer
+alterações na crate `minips-macros` para entendê-las do arquivo `yml` e então
+gerar toda a infraestrutura a partir delas. Essa parte do desenvolvimento
+envolveu basicamente só *copy-paste* de código que já estava pronto mais
+algumas poucas modificações. 
 
-Também tive problemas com interpretação de inteiros -- quando assumir que um
-valor é com ou sem sinal. Isso se deve ao fato de eu ter assumido que as
-instruções `ADD(I)U` apenas tratavam com inteiros `unsigned`. Teoricamente,
-como a soma de inteiros com e sem sinal, em complemento de 2, é igual
-bit-a-bit, não haveria problema. No entanto, como eu estava sempre fazendo
-extensão com zeros para os 32 bits, por achar que eram unsigned, o resultado
-não era o esperado. Depois de leitura do *greencard*, e escrevendo um assembly
-simples para teste, foi possível corrigir esse problema.
+[^1]: *de jure* diferente, mas *de facto* igual às outras
 
-Faço uma observação: *debuggar assembly é difícil* `:P`, ainda mais sem um
-debugger no cliente. Imprimir a instrução atual, bem como os valores dos
-registradores, em alguns momentos foi útil em algumas situações.
+Adicionalmente, comecei a implementar o *statistics counter* que apresenta
+estatísticas da simulação ao final da execução. Para destilar os tipos de
+instruções, adicionei a fase `kind` (`minips-macros/src/kind.rs`) que
+simplesmente implementa a enum `Kind` em cada instrução. Essa enum armazena o
+tipo da instrução -- `R, I, J, FR, FI`.
+
+## Dizia eu que a aritmética......
+
+Os registradores de aritmética são um novo atributo na struct `Cpu`: a tupla
+`arith_regs`. O primeiro valor representa o registrador `LO`, e o segundo, o
+`HI`. As implementações das instruções em específico são triviais.
+
+## Floating Point (cop1)
+
+Os registradores de ponto flutuante foram implementados na própria estrutura
+da CPU (`src/cpu.rs`), exatamente da mesma maneira que os registradores de
+propósito geral. A saber, foi implementado um *newtype* `FloatRegisters` que
+armazena 32 **inteiros sem sinal de 32 bits**. Preferi fazer desta maneira e
+fazer as conversões manualmente quando necessário, especialmente por `floats`
+e `doubles` compartilharem os mesmos registradores.
+
+Esse *newtype* `FloatRegister` é indexado por um `FloatRegister`, que também
+implementa o pretty-printing, exatamente na mesma maneira que a dupla
+`Registers` e `Register` fazem para os GPRs.
+
+Para as computações com ponto flutuante, converto para os tipos nativos de
+ponto flutuante da linguagem (`f32` e `f64`) e utilizo as operações nativas.
+
+## Branch Delay Slot
+
+O branch delay slot foi implementado utilizando dois novos atributos na struct
+`Cpu`: o `branch_to`, que é setado para `Some(next_pc)` depois de toda
+instrução de branch que foi tomada, e o `in_delay_slot`, que é setado para
+`true` toda vez que um ciclo inicia e `branch_to` não é um `None`. Ao final da
+execução do ciclo, se `branch_to` não é `None` e `in_delay_slot` é `true`, o
+program counter recebe o valor anteriormente armazenado em `branch_to` e essas
+variáveis são resetadas para `None` e `false`. Caso esse não seja o caso, o
+program counter é apenas incrementado como sempre.
+
+## Otimizações
+
+As funções de conversão entre os tipos numéricos relevantes ao projeto, que
+estão no arquivo `src/cpu.rs`, são utilizadas amplamente durante a
+interpretação das instruções. Durante a fase I desse projeto, essas funções
+utilizavam um encadeamento de `from_le_bytes(to_le_bytes(src))`. 
+
+Agora, essas funções utilizam uma estratégia mais *C-like*: ao invés de passar
+por funções que possivelmente façam cópias, utilizo `unsafe` e simplesmente
+reinterpreto os bytes da fonte como se fossem bytes do tipo desejado. A ideia
+é transformar uma referência para o valor fonte em um *raw pointer* do mesmo
+tipo da fonte, depois fazer um `cast` para um *raw pointer* do tipo de
+destino, e por final fazer a dereferência desse ponteiro. Pelas regras de
+segurança de memória da linguagem Rust, é necessário usar `unsafe` para esse
+último passo.
+
+![Ilustração fiel do processo de otimização.](fig/unsafe.jpg){ height=3in }
+
+Como sempre tenho certeza que os dados são válidos no tipo de destino, não
+existem problemas com essa estratégia.
 
 # Orgulhos!
 
-Depois de três disciplinas com o prof. Emilio, sinto que esse é o primeiro
-projeto que o entrego com orgulho e satisfeito. `:D`
+Não tive muito tempo para brincar com essa implementação, se comparado com a
+fase anterior. No entanto, consegui extrair uma parte da *BIOS* do
+*PlayStation 1*, e o projeto conseguiu pelo menos fazer o disassembly. :)
 
-Sobretudo, considero esse projeto como uma das bases de código Rust mais
-maduras que já escrevi. Além do modelo de *ownership* que funcionou *bem
-legal*, elenco duas principais faces: o uso de *idioms* e o de *macros*.
+# Experimentos Futuros e Melhorias
 
-Em relação ao uso de *idioms*, o código inteiro faz tratamento de erros usando
-a monad `Result<T,E>` ("equivalente" ao `Either a b` no Haskell). Ainda, com a
-crate `color_eyre`, pude usar o operador `?` ao longo de todo o código e
-ter mensagens de erro bem bonitinhas e controladas. Experimente usar uma
-instrução não implementada, por exemplo!
+Na próxima fase, pretendo implementar o coprocessador 0 e memory mapping.
+Assim, consigo o meu tão querido *framebuffer* e posso sonhar com rodar
+GNU/Linux no emulador.
 
-Talvez o uso mais bonito de *idioms* aqui se deu no tratamento dos
-registradores. Usei dois `newtypes`: o `Registers`, que representa o conjunto
-dos 32 registradores MIPS e simplesmente encapsula um array de 32 inteiros de
-32 bits, e o `Register`, que encapsula um "índice" de registrador, que é
-apenas um inteiro de 32 bits.
+Pretendo fazer mais um overhaul na infraestrutura de instruções, e utilizar
+`union`s + a biblioteca `bitvec` para poder fazer `match` em todos os campos
+possíveis de uma instrução durante o parsing. Assim, evito as funções de parse
+específicas para cada tipo de instrução, e o parser vira mais versátil para
+possíveis novos tipos.
 
-Criei o `newtype` `Register` por uma razão: para facilitar o *pretty-printing*
-de instruções e registradores. Implementei a trait `Display` nesse novo tipo e
-nela fiz a conversão entre índices de registradores e seus aliases. Assim, o
-código
-
-```rust
-println!("{} {} {}", Register(0), Register(2), Register(10))
-```
-
-Gerará a saída:
-
-```rust
-$zero $v0 $t2
-```
-
-Semelhantemente, implementei o `Registers` para poder indexar o conjunto de
-registradores utilizando um `Register`. Isso tornou a implementação da
-execução das instruções bem amigável!
-
-Esse jogo dos newtypes pode ser encontrado nos arquivos
-`src/emulator/{mod,cpu}.rs`.
-
-O segundo orgulho, talvez o maior, é a macro `instr_from_yaml` que pode ser
-encontrado no arquivo `minips-macros/src/lib.rs`. Meu workflow para
-implementar novas instruções até antes dessa macro era um pouco *janky*:
-declarar a instrução no `enum Instruction`, escrever a implementação do
-`Display` para o disassemble da instrução, adicionar mais um caso no decoder e
-finalmente implementar a execução da mesma. Bem repetitivo e verboso.
-
-Como bom programador que adora gastar mais tempo automatizando a tarefa do que
-a fazendo manualmente, construí a (*procedural*) macro `instr_from_yaml`.
-
-Ela recebe um arquivo `YML` contendo todas as instruções que o emulador
-reconhece, junto de propriedades das mesmas. A macro, então, gera a
-declaração, a implementação de `Display` e a implementação do parser para cada
-uma dessas instruções. 
-
-Dessa maneira, só adicionar a nova instrução no arquivo `instructions.yml` já
-é suficiente para que o emulador reconheça uma nova instrução. Daí, só falta
-implementar uma vez a instrução no arquivo `cpu.rs` e tudo funciona.
-
-Em geral, me diverti bastante escrevendo esse projeto. Eu tenho bastante
-apreço por *baixo nível*, e me deixei levar um pouco -- quis rodar programas
-escritos em C no meu emulador. Inicialmente, o código era compilado e
-*marretado* para que os endereços fossem calculados corretamente, e então era
-usado o `objcopy` para criar a dupla de arquivos `.{text,data}` que o emulador
-sabe carregar. 
-
-No entanto, essa workflow não era nada ideal e flexível. Portanto, utilizei a
-crate `goblin` e implementei o carregamento de arquivos `ELF`. Cada seção é
-carregada na memória do emulador no endereço correto, e o *program counter*
-inicial é definido como o *entry point* do arquivo `ELF`. Desse modo, o
-`minips-rs` consegue executar programas que foram gerados pelo linker sem
-nenhuma modificação. Essa feature pode ser achada no arquivo principal,
-`src/main.rs`.
-
-# Experimentos Futuros
-
-Com as próximas fases do projeto da disciplina, pretendo implementar exceções
-e mapeamento de memória. Tendo isso, consigo implementar um framebuffer
-simples (basta usar, por exemplo, a crate `minifb`, mapear um buffer na
-memória do emulador e fazer uma magia de sincronização para copiar esse
-buffer mapeado para o buffer do `minifb`). 
-
-Minha ambição final, então, é *rodar Linux e Doom* no emulador. Tenho alguma
-experiência com o kernel em embarcados, e até onde sei basta apenas criar uma
-device tree para o emulador (nela citando, por exemplo, o framebuffer simples)
-e um `tty` driver que utiliza as `syscalls`, e carregar esse pacotão utilizando o
-`ELF` loader já implementado.
+Também pretendo abstrair coprocessadores -- talvez utilizar uma `trait` e
+resolver tudo em compile time, no lugar de ter todos os registradores de todos
+os coprocessadores direto na struct `Cpu`.
