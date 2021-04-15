@@ -104,10 +104,16 @@ impl<T: Memory, const L: usize, const N: usize> Memory for Cache<T, L, N, 1> {
         match self.lines[line_idx] {
             Some(ref line) if line.tag == (addr - offset as u32) => {
                 // Hit!
+                println!("cache {}: read access {:#010x} hit at line {:#010x} offset {:x}",
+                         self.name, addr, line_idx, offset);
+
                 return Ok(line.data[offset]);
             }, 
             _ => {
                 // Miss!
+                println!("cache {}: read access {:#010x} miss at line {:#010x} offset {:x}",
+                         self.name, addr, line_idx, offset);
+
                 // Como aqui é mapeamento direto, so existe uma linha possível de ser 
                 // sobrescrita.
 
@@ -126,11 +132,15 @@ impl<T: Memory, const L: usize, const N: usize> Memory for Cache<T, L, N, 1> {
 
         match &mut self.lines[line_idx] {
             Some(ref mut line) if line.tag == (addr - offset as u32) => {
+                println!("cache {}: write access {:#010x} hit at line {:#010x} offset {:x}",
+                         self.name, addr, line_idx, offset);
                 // A linha é nossa, só atualiza e seta o dirty
                 line.data[offset] = val;
                 line.dirty = true;
             }, 
             _ => {
+                println!("cache {}: write access {:#010x} miss at line {:#010x} offset {:x}",
+                         self.name, addr, line_idx, offset);
                 // A linha não é nossa. Faz o flush e fetch do prox nível
                 self.flush_line(line_idx)?;
                 self.load_into_line(line_idx, addr - offset as u32)?;

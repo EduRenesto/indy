@@ -2,6 +2,8 @@
 //! Futuramente, quero implementar uma MMU para mapping e caches, e
 //! provavelmente boa parte dessa empreitada aparecerá nesse módulo.
 
+use super::Memory;
+
 use color_eyre::eyre::{eyre, Result};
 
 use std::collections::HashMap;
@@ -28,18 +30,24 @@ impl Ram {
             memory: HashMap::with_capacity(1024),
         }
     }
+}
 
+impl Memory for Ram {
     /// Retorna o valor no endereço especificado, sendo 0 caso não tenha sido
     /// inicalizado.
-    pub fn peek(&self, addr: u32) -> Result<&u32> {
+    fn peek(&mut self, addr: u32) -> Result<u32> {
         check_alignment!(addr);
 
-        Ok(self.memory.get(&addr).unwrap_or(&0))
+        //println!("mem: read {:#010x}", addr);
+
+        Ok(*self.memory.get(&addr).unwrap_or(&0))
     }
 
     /// Modifica um valor no endereço especificado.
-    pub fn poke(&mut self, addr: u32, val: u32) -> Result<()> {
+    fn poke(&mut self, addr: u32, val: u32) -> Result<()> {
         check_alignment!(addr);
+
+        //println!("mem: write {:#010x}", addr);
 
         self.memory.insert(addr, val);
 
@@ -48,7 +56,7 @@ impl Ram {
 
     /// Faz uma leitura não alinhada na memória. Isto é, retorna apenas um byte
     /// de uma word.
-    pub fn peek_unaligned(&self, addr: u32) -> Result<u8> {
+    fn peek_unaligned(&mut self, addr: u32) -> Result<u8> {
         let base = addr & 0xFFFFFFFC; // alinha pro lowest multiplo de 4
         let offset = addr - base; // offset agora armazena qual é o byte desejado
 
@@ -56,29 +64,5 @@ impl Ram {
 
         //Ok(((word & (0xFF << offset )) >> offset) as u8)
         Ok(word.to_le_bytes()[offset as usize])
-    }
-
-    /// Carrega um bloco de dados na memória a partir do endereço especificado.
-    pub fn load_slice_into_addr(&mut self, base: u32, data: &[u32]) -> Result<()> {
-        check_alignment!(base);
-
-        let mut addr = base;
-        for word in data {
-            self.poke(addr, *word)?;
-            addr += 4;
-        }
-
-        Ok(())
-    }
-
-    /// Imprime o conteúdo da memória na saída padrão.
-    #[allow(dead_code)]
-    pub fn dump(&self) {
-        for (addr, word) in &self.memory {
-            if word == &0 {
-                continue;
-            };
-            println!("{:#010x}: {:#010x}", addr, word);
-        }
     }
 }

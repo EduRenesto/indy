@@ -14,6 +14,7 @@ pub(crate) mod emulator;
 
 use emulator::Cpu;
 use emulator::Instruction;
+use emulator::memory::{ Memory, Ram, Cache, RepPolicy };
 
 /// Carrega o arquivo num vetor de palavras de 32 bits.
 fn u32_vec_from_file(mut file: File) -> Vec<u32> {
@@ -108,37 +109,37 @@ fn main() -> Result<()> {
 
         Ok(())
     } else if let Some(matches) = matches.subcommand_matches("run") {
+        let mut ram = Ram::new();
+
         // Executa o binário
         let entry = u32::from_str_radix(&matches.value_of("entry").unwrap()[2..], 16)?;
         let executable = Executable::from_naked_files(matches.value_of("file").unwrap())?;
 
         //let mut cpu = Cpu::new(0x00400000, 0x7FFFEFFC, 0x10008000);
-        let mut cpu = Cpu::new(entry, 0x7FFFEFFC, 0x10008000);
 
-        cpu.memory_mut()
-            .load_slice_into_addr(0x00400000, &executable.text[..])?;
+        ram.load_slice_into_addr(0x00400000, &executable.text[..])?;
         if let Some(ref data) = executable.data {
-            cpu.memory_mut()
-                .load_slice_into_addr(0x10010000, &data[..])?;
+            ram.load_slice_into_addr(0x10010000, &data[..])?;
         }
         if let Some(ref data) = executable.rodata {
-            cpu.memory_mut()
-                .load_slice_into_addr(0x00800000, &data[..])?;
+            ram.load_slice_into_addr(0x00800000, &data[..])?;
         }
 
+        let cache: Cache<_, 1, 1024, 1> = Cache::new("L1", ram, RepPolicy::Random, 1);
+
+        let mut cpu = Cpu::new(cache, entry, 0x7FFFEFFC, 0x10008000);
         cpu.run()?;
 
         Ok(())
     } else if let Some(matches) = matches.subcommand_matches("runelf") {
+        let mut ram = Ram::new();
+
         // Executa o elf
         let mut file = File::open(matches.value_of("file").unwrap())?;
         let mut file_bytes = Vec::new();
         file.read_to_end(&mut file_bytes)?;
 
         let elf = Elf::parse(&file_bytes[..])?;
-
-        // Seta o PC para o entry point do arquivo ELF
-        let mut cpu = Cpu::new(elf.entry as u32, 0x7FFFEFFC, 0x10008000);
 
         // Carrega cada seção carregável em seu respectivo endereço
         for section in elf.program_headers {
@@ -159,10 +160,14 @@ fn main() -> Result<()> {
                     })
                     .collect();
 
-                cpu.memory_mut()
-                    .load_slice_into_addr(section.p_paddr as u32, &section_bytes[..])?;
+                ram.load_slice_into_addr(section.p_paddr as u32, &section_bytes[..])?;
             }
         }
+
+        let cache: Cache<_, 1, 8, 1> = Cache::new("L1", ram, RepPolicy::Random, 1);
+
+        // Seta o PC para o entry point do arquivo ELF
+        let mut cpu = Cpu::new(cache, elf.entry as u32, 0x7FFFEFFC, 0x10008000);
 
         cpu.run()?;
 

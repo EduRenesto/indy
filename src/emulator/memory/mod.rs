@@ -5,11 +5,14 @@ pub mod cache;
 
 // TODO remover depois da integracao
 pub use ram::Ram;
+pub use cache::{ Cache, RepPolicy };
 
 pub trait Memory {
     fn peek(&mut self, addr: u32) -> Result<u32>;
     fn poke(&mut self, addr: u32, val: u32) -> Result<()>;
 
+    /// Faz uma leitura não alinhada na memória. Isto é, retorna apenas um byte
+    /// de uma word.
     fn peek_unaligned(&mut self, addr: u32) -> Result<u8> {
         let base = addr & 0xFFFFFFFC; // alinha pro lowest multiplo de 4
         let offset = addr - base; // offset agora armazena qual é o byte desejado
@@ -18,5 +21,16 @@ pub trait Memory {
 
         //Ok(((word & (0xFF << offset )) >> offset) as u8)
         Ok(word.to_le_bytes()[offset as usize])
+    }
+
+    /// Carrega um bloco de dados na memória a partir do endereço especificado.
+    fn load_slice_into_addr(&mut self, base: u32, data: &[u32]) -> Result<()> {
+        let mut addr = base;
+        for word in data {
+            self.poke(addr, *word)?;
+            addr += 4;
+        }
+
+        Ok(())
     }
 }

@@ -5,7 +5,7 @@
 
 use super::FloatRegister;
 use super::Instruction;
-use super::Memory;
+use super::memory::Memory;
 use super::Register;
 
 use super::instr::{branch_addr, jump_addr, sign_extend, sign_extend_cast};
@@ -142,13 +142,13 @@ impl std::ops::IndexMut<FloatRegister> for FloatRegisters {
 }
 
 /// Essa struct encapsula o estado da CPU, assim como a instância da memória.
-pub struct Cpu {
+pub struct Cpu<T: Memory> {
     /// 32 registradores de 32 bits.
     regs: Registers,
 
     /// A instância da memória ligada a CPU atual.
     /// No futuro, trocarei por uma MMU para fazer caching e mapping.
-    mem: Memory,
+    mem: T,
 
     /// O program counter.
     pc: u32,
@@ -172,14 +172,14 @@ pub struct Cpu {
     stats: StatsReporter,
 }
 
-impl Cpu {
+impl<T: Memory> Cpu<T> {
     /// Cria uma nova instância da CPU, colocando o program counter no
     /// endereço `start` especificado.
-    pub fn new(start: u32, sp: u32, gp: u32) -> Cpu {
+    pub fn new(mem: T, start: u32, sp: u32, gp: u32) -> Self {
         // TODO set gp, sp
         let mut cpu = Cpu {
             regs: Registers([0; 32]),
-            mem: Memory::new(),
+            mem,
             pc: start,
             in_delay_slot: false,
             branch_to: None,
@@ -197,12 +197,12 @@ impl Cpu {
 
     /// Retorna uma referência para o objeto Memory associado a essa CPU.
     #[allow(dead_code)]
-    pub fn memory(&self) -> &Memory {
+    pub fn memory(&self) -> &T {
         &self.mem
     }
 
     /// Retorna uma referência mutável para o objeto Memory associado a essa CPU.
-    pub fn memory_mut(&mut self) -> &mut Memory {
+    pub fn memory_mut(&mut self) -> &mut T {
         &mut self.mem
     }
 
@@ -222,7 +222,7 @@ impl Cpu {
 
         let word = self.mem.peek(self.pc)?;
 
-        let instr = Instruction::decode(*word)?;
+        let instr = Instruction::decode(word)?;
         self.stats.add_instr(&instr);
         //println!("{:#010x}: {}", self.pc, instr);
         match instr {
@@ -382,7 +382,7 @@ impl Cpu {
             }
             Instruction::LW(args) => {
                 let addr = self.regs[args.rs] as i32 + sign_extend_cast(args.imm, 16);
-                self.regs[args.rt] = *self.mem.peek(addr as u32)?;
+                self.regs[args.rt] = self.mem.peek(addr as u32)?;
             }
             Instruction::SW(args) => {
                 let addr = self.regs[args.rs] as i32 + sign_extend_cast(args.imm, 16);
@@ -431,11 +431,11 @@ impl Cpu {
             }
             Instruction::LB(args) => {
                 let addr = self.regs[args.rs] as i32 + sign_extend_cast(args.imm, 16);
-                self.regs[args.rt] = sign_extend(*self.mem.peek(addr as u32)?, 8);
+                self.regs[args.rt] = sign_extend(self.mem.peek(addr as u32)?, 8);
             }
             Instruction::LWC1(args) => {
                 let addr = self.regs[args.rs] as i32 + sign_extend_cast(args.imm, 16);
-                self.float_regs[args.rt.into()] = *self.mem.peek(addr as u32)?;
+                self.float_regs[args.rt.into()] = self.mem.peek(addr as u32)?;
             }
             Instruction::MFC1(args) => {
                 self.regs[args.ft.into()] = self.float_regs[args.fs];
@@ -445,8 +445,8 @@ impl Cpu {
 
                 let rt: FloatRegister = args.rt.into();
 
-                self.float_regs[rt] = *self.mem.peek(addr as u32)?;
-                self.float_regs[rt + 1] = *self.mem.peek(addr as u32 + 4)?;
+                self.float_regs[rt] = self.mem.peek(addr as u32)?;
+                self.float_regs[rt + 1] = self.mem.peek(addr as u32 + 4)?;
             }
             Instruction::MOV_S(args) => {
                 self.float_regs[args.fd] = self.float_regs[args.fs];
