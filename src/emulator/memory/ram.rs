@@ -17,14 +17,14 @@ macro_rules! check_alignment {
 }
 
 /// Como sugerido, a memória é só um HashMap onde as chaves são os endereços.
-pub struct Memory {
+pub struct Ram {
     memory: HashMap<u32, u32>,
 }
 
-impl Memory {
-    /// Cria um novo objeto Memory, com capacidade pré-alocada de 1024 words.
-    pub fn new() -> Memory {
-        Memory {
+impl Ram {
+    /// Cria um novo objeto Ram, com capacidade pré-alocada de 1024 words.
+    pub fn new() -> Ram {
+        Ram {
             memory: HashMap::with_capacity(1024),
         }
     }

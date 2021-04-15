@@ -8,7 +8,7 @@ pub(crate) mod stats;
 // Re-exports pra ficar melhor de usar ao longo do código
 pub use cpu::Cpu;
 //pub use instr::{IArgs, Instruction, RArgs};
-pub use memory::Memory;
+pub use memory::Ram as Memory;
 
 /// Mais uma vez usamos o `newtype`. Essa struct não é um registrador em si
 /// (vide `cpu.rs`), mas um *índice* para um registrador.
