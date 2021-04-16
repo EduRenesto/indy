@@ -17,6 +17,8 @@ use std::io::Write;
 
 use color_eyre::eyre::{eyre, Result};
 
+use log::debug;
+
 /// Nosso processador MIPS tem 32 registradores de 32 bits.
 /// Essa newtype encapsula uma array de 32*u32 para que possamos implementar
 /// traits arbitrários como quisermos nela, além de melhorar a legibilidade.
@@ -224,7 +226,7 @@ impl<T: Memory> Cpu<T> {
 
         let instr = Instruction::decode(word)?;
         self.stats.add_instr(&instr);
-        //println!("{:#010x}: {}", self.pc, instr);
+        debug!("{:#010x}: {}", self.pc, instr);
         match instr {
             Instruction::NOP => {}
             Instruction::ADD(args) => {
@@ -299,6 +301,9 @@ impl<T: Memory> Cpu<T> {
                     }
                     11 => {
                         print!("{}", self.regs[Register(4)] as u8 as char);
+                    }
+                    500 => {
+                        self.mem.dump()?;
                     }
                     a => println!("syscall: unknown syscall {}", a),
                 };

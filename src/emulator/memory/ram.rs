@@ -65,4 +65,8 @@ impl Memory for Ram {
         //Ok(((word & (0xFF << offset )) >> offset) as u8)
         Ok(word.to_le_bytes()[offset as usize])
     }
+
+    fn dump(&self) -> Result<()> {
+        unimplemented!()
+    }
 }

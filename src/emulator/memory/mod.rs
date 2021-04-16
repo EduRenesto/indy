@@ -8,8 +8,14 @@ pub use ram::Ram;
 pub use cache::{ Cache, RepPolicy };
 
 pub trait Memory {
+    /// Lê o valor armazenado no endereço `addr`.
     fn peek(&mut self, addr: u32) -> Result<u32>;
+
+    /// Escreve o valor `val` no endereço `addr`.
     fn poke(&mut self, addr: u32, val: u32) -> Result<()>;
+
+    /// Mostra o conteúdo desse nível de memória. Apenas para debugging.
+    fn dump(&self) -> Result<()>;
 
     /// Faz uma leitura não alinhada na memória. Isto é, retorna apenas um byte
     /// de uma word.

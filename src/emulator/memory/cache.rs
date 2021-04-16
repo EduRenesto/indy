@@ -1,5 +1,7 @@
 use super::Memory;
 
+use log::debug;
+
 use color_eyre::eyre::{ Result, eyre };
 
 /// As políticas de substituição da cache.
@@ -13,7 +15,7 @@ pub enum RepPolicy {
 
 /// Uma linha de cache.
 /// L é o tamanho em palavras da linha.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 struct Line<const L: usize> {
     /// A tag da linha.
     /// TODO trocar de u32 pra u8 e fazer o calculo direito!
@@ -23,6 +25,18 @@ struct Line<const L: usize> {
     dirty: bool,
     /// Os dados da linha.
     data: [u32; L],
+}
+
+impl<const L: usize> std::fmt::Debug for Line<L> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Line {{ tag: {:#010x}, dirty: {:?}, data: [ ", self.tag, self.dirty)?;
+        for d in self.data.iter() {
+            write!(f, "{:#010x} ", d)?;
+        }
+        write!(f, "]}}")?;
+
+        Ok(())
+    }
 }
 
 /// Uma cache.
@@ -60,6 +74,7 @@ impl<T: Memory, const L: usize, const N: usize, const A: usize> Cache<T, L, N, A
     fn flush_line(&mut self, line_idx: usize) -> Result<()> {
         match &self.lines[line_idx] {
             Some(ref line) if line.dirty => {
+                debug!("cache {}: flushing line {:#010x} to {:#010x}", self.name, line_idx, line.tag);
                 for i in 0..L {
                     self.next.poke(line.tag + i as u32, line.data[i])?;
                 }
@@ -73,11 +88,13 @@ impl<T: Memory, const L: usize, const N: usize, const A: usize> Cache<T, L, N, A
     /// Pega uma linha do próximo nível e o coloca na linha
     /// da cache. Ignora o conteúdo anterior da linha: tome cuidado!
     fn load_into_line(&mut self, line_idx: usize, base: u32) -> Result<()> {
+        debug!("cache {}: loading {:#010x} to line {:#010x}", self.name, base, line_idx);
         if let Some(line) = self.lines[line_idx].as_mut() {
             for i in 0..L {
                 line.data[i] = self.next.peek(base + 4 * i as u32)?;
             }
             line.dirty = false;
+            line.tag = base;
         } else {
             let mut data = [0; L];
             for i in 0..L {
@@ -98,20 +115,20 @@ impl<T: Memory, const L: usize, const N: usize, const A: usize> Cache<T, L, N, A
 /// Implementação de uma cache com A=1, ou seja, com mapeamento direto.
 impl<T: Memory, const L: usize, const N: usize> Memory for Cache<T, L, N, 1> {
     fn peek(&mut self, addr: u32) -> Result<u32> {
-        let line_idx = addr as usize % (L * N);
-        let offset = addr as usize % L;
+        let line_idx = (addr / 4) as usize % (L * N);
+        let offset = (addr / 4) as usize % L;
         
         match self.lines[line_idx] {
             Some(ref line) if line.tag == (addr - offset as u32) => {
                 // Hit!
-                println!("cache {}: read access {:#010x} hit at line {:#010x} offset {:x}",
+                debug!("cache {}: read access {:#010x} hit at line {:#010x} offset {:x}",
                          self.name, addr, line_idx, offset);
 
                 return Ok(line.data[offset]);
             }, 
             _ => {
                 // Miss!
-                println!("cache {}: read access {:#010x} miss at line {:#010x} offset {:x}",
+                debug!("cache {}: read access {:#010x} miss at line {:#010x} offset {:x}",
                          self.name, addr, line_idx, offset);
 
                 // Como aqui é mapeamento direto, so existe uma linha possível de ser 
@@ -127,25 +144,40 @@ impl<T: Memory, const L: usize, const N: usize> Memory for Cache<T, L, N, 1> {
     }
 
     fn poke(&mut self, addr: u32, val: u32) -> Result<()> {
-        let line_idx = addr as usize % (L * N);
+        let line_idx = (addr / 4) as usize % (L * N);
         let offset = addr as usize % L;
 
         match &mut self.lines[line_idx] {
             Some(ref mut line) if line.tag == (addr - offset as u32) => {
-                println!("cache {}: write access {:#010x} hit at line {:#010x} offset {:x}",
+                debug!("cache {}: write access {:#010x} hit at line {:#010x} offset {:x}",
                          self.name, addr, line_idx, offset);
                 // A linha é nossa, só atualiza e seta o dirty
                 line.data[offset] = val;
                 line.dirty = true;
             }, 
             _ => {
-                println!("cache {}: write access {:#010x} miss at line {:#010x} offset {:x}",
+                debug!("cache {}: write access {:#010x} miss at line {:#010x} offset {:x}",
                          self.name, addr, line_idx, offset);
                 // A linha não é nossa. Faz o flush e fetch do prox nível
                 self.flush_line(line_idx)?;
                 self.load_into_line(line_idx, addr - offset as u32)?;
+
+                self.lines[line_idx].as_mut().unwrap().data[offset] = val;
+                self.lines[line_idx].as_mut().unwrap().dirty = true;
             }
         }
+
+        Ok(())
+    }
+
+    fn dump(&self) -> Result<()> {
+        println!("===== Dump of cache {} =====", self.name);
+
+        for (idx, line) in self.lines.iter().enumerate() {
+            println!("line {:#010x}: {:?}", idx, line);
+        }
+
+        println!("============================");
 
         Ok(())
     }
