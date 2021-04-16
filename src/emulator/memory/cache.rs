@@ -1,6 +1,7 @@
 use super::Memory;
 
 use log::debug;
+use rand::{ thread_rng, distributions::{ Distribution, Uniform } };
 
 use color_eyre::eyre::{ Result, eyre };
 
@@ -39,6 +40,11 @@ impl<const L: usize> std::fmt::Debug for Line<L> {
     }
 }
 
+enum FindLine {
+    Hit(u32, u32),
+    Miss(u32, u32),
+}
+
 /// Uma cache.
 /// T é o tipo do próximo nível, L é o tamanho em palavras de cada linha,
 /// N é o número de linhas e A é a associatividade da cache. Ou seja,
@@ -69,6 +75,45 @@ impl<T: Memory, const L: usize, const N: usize, const A: usize> Cache<T, L, N, A
         }
     }
 
+    /// Acha a linha em que o endereço está. 
+    fn find_line(&self, addr: u32) -> FindLine {
+        let lines_per_block = N / A;
+
+        let offset = (addr / 4) as usize % L;
+        let base = addr - (4*offset as u32);
+
+        let block_idx = base as usize % A;
+
+        for i in 0..lines_per_block {
+            let line_idx = block_idx * lines_per_block + i;
+            match &self.lines[line_idx] {
+                Some(ref line) if line.tag == base => {
+                    return FindLine::Hit(line_idx as u32, offset as u32);
+                },
+                _ => continue,
+            }
+        }
+
+        if A == 1 {
+            let line_idx = (base / 4) as usize % N;
+            return FindLine::Miss(line_idx as u32, offset as u32);
+        }
+
+        match self.policy {
+            RepPolicy::Random => {
+                // TODO da pra tirar umas coisas daq
+                let mut rng = thread_rng();
+                let dist = Uniform::new(0, lines_per_block);
+                let line_idx = block_idx * lines_per_block + dist.sample(&mut rng);
+
+                FindLine::Miss(line_idx as u32, offset as u32)
+            },
+            RepPolicy::LeastRecentlyUsed => {
+                todo!()
+            },
+        }
+    }
+
     /// Se a flag `dirty` da linha ser verdadeira, então
     /// escreve o conteúdo no próximo nível. Senão, não faz nada.
     fn flush_line(&mut self, line_idx: usize) -> Result<()> {
@@ -76,7 +121,7 @@ impl<T: Memory, const L: usize, const N: usize, const A: usize> Cache<T, L, N, A
             Some(ref line) if line.dirty => {
                 debug!("cache {}: flushing line {:#010x} to {:#010x}", self.name, line_idx, line.tag);
                 for i in 0..L {
-                    self.next.poke(line.tag + i as u32, line.data[i])?;
+                    self.next.poke(line.tag + 4*i as u32, line.data[i])?;
                 }
 
                 Ok(())
@@ -115,11 +160,12 @@ impl<T: Memory, const L: usize, const N: usize, const A: usize> Cache<T, L, N, A
 /// Implementação de uma cache com A=1, ou seja, com mapeamento direto.
 impl<T: Memory, const L: usize, const N: usize> Memory for Cache<T, L, N, 1> {
     fn peek(&mut self, addr: u32) -> Result<u32> {
-        let line_idx = (addr / 4) as usize % (L * N);
         let offset = (addr / 4) as usize % L;
+        let base = addr - (4*offset as u32);
+        let line_idx = (base / 4) as usize % N;
         
         match self.lines[line_idx] {
-            Some(ref line) if line.tag == (addr - offset as u32) => {
+            Some(ref line) if line.tag == base => {
                 // Hit!
                 debug!("cache {}: read access {:#010x} hit at line {:#010x} offset {:x}",
                          self.name, addr, line_idx, offset);
@@ -136,7 +182,7 @@ impl<T: Memory, const L: usize, const N: usize> Memory for Cache<T, L, N, 1> {
 
                 // Faz o flush da linha antiga
                 self.flush_line(line_idx)?;
-                self.load_into_line(line_idx, addr - offset as u32)?;
+                self.load_into_line(line_idx, base)?;
             },
         }
 
@@ -144,11 +190,12 @@ impl<T: Memory, const L: usize, const N: usize> Memory for Cache<T, L, N, 1> {
     }
 
     fn poke(&mut self, addr: u32, val: u32) -> Result<()> {
-        let line_idx = (addr / 4) as usize % (L * N);
-        let offset = addr as usize % L;
+        let offset = (addr / 4) as usize % L;
+        let base = addr - (4*offset as u32);
+        let line_idx = (base / 4) as usize % N;
 
         match &mut self.lines[line_idx] {
-            Some(ref mut line) if line.tag == (addr - offset as u32) => {
+            Some(ref mut line) if line.tag == base => {
                 debug!("cache {}: write access {:#010x} hit at line {:#010x} offset {:x}",
                          self.name, addr, line_idx, offset);
                 // A linha é nossa, só atualiza e seta o dirty
@@ -160,7 +207,7 @@ impl<T: Memory, const L: usize, const N: usize> Memory for Cache<T, L, N, 1> {
                          self.name, addr, line_idx, offset);
                 // A linha não é nossa. Faz o flush e fetch do prox nível
                 self.flush_line(line_idx)?;
-                self.load_into_line(line_idx, addr - offset as u32)?;
+                self.load_into_line(line_idx, base)?;
 
                 self.lines[line_idx].as_mut().unwrap().data[offset] = val;
                 self.lines[line_idx].as_mut().unwrap().dirty = true;

@@ -13,3 +13,4 @@ goblin = { features = ["std", "elf32"], version = "0.3" }
 minips-macros = { path = "minips-macros" }
 log = "0.4"
 simple_logger = "1.11"
+rand = "0.8"

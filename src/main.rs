@@ -56,6 +56,8 @@ impl Executable {
 fn main() -> Result<()> {
     color_eyre::install()?;
 
+    //simple_logger::SimpleLogger::new().init().unwrap();
+
     // Aqui é descrito o CLI do emulador.
     // Não vou comentar porque a API do clap é bem auto-descritiva
     let matches = App::new("minips-rs")
@@ -125,7 +127,7 @@ fn main() -> Result<()> {
             ram.load_slice_into_addr(0x00800000, &data[..])?;
         }
 
-        let cache: Cache<_, 1, 1024, 1> = Cache::new("L1", ram, RepPolicy::Random, 1);
+        let cache: Cache<_, 2, 1024, 1> = Cache::new("L1", ram, RepPolicy::Random, 1);
 
         let mut cpu = Cpu::new(cache, entry, 0x7FFFEFFC, 0x10008000);
         cpu.run()?;
