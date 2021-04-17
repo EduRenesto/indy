@@ -1,2 +1,4 @@
 /target
 /minips-macros/target
+flamegraph.svg
+perf.data*
