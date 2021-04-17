@@ -204,6 +204,7 @@ impl<T: Memory> Cpu<T> {
     }
 
     /// Retorna uma referência mutável para o objeto Memory associado a essa CPU.
+    #[allow(dead_code)]
     pub fn memory_mut(&mut self) -> &mut T {
         &mut self.mem
     }

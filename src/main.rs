@@ -4,7 +4,7 @@
 //! Implementação do emulador em si está no módulo `emulator`.
 
 use clap::{crate_version, App, Arg, SubCommand};
-use color_eyre::eyre::Result;
+use color_eyre::eyre::{ Result, eyre };
 use goblin::elf::Elf;
 
 use std::fs::File;
@@ -64,6 +64,7 @@ fn main() -> Result<()> {
     let matches = App::new("minips-rs")
         .version(crate_version!())
         .author("Edu Renesto, eduardo.renesto@aluno.ufabc.edu.br")
+        .arg(Arg::with_name("conf").required(false).default_value("1").help("Índice da configuração da memória"))
         .subcommand(
             SubCommand::with_name("decode")
                 .about("Desconstrói o binário, mostrando o código Assembly equivalente")
@@ -93,6 +94,8 @@ fn main() -> Result<()> {
                 .arg(Arg::with_name("file").index(1).required(true)),
         )
         .get_matches();
+
+    let mem_cfg = matches.value_of("conf").unwrap();
 
     if let Some(matches) = matches.subcommand_matches("decode") {
         // Desmonta o binário
@@ -128,12 +131,23 @@ fn main() -> Result<()> {
             ram.load_slice_into_addr(0x00800000, &data[..])?;
         }
 
-        let ram = UnsafeCell::new(ram);
+        match mem_cfg {
+            "1" => {
+                let mut cpu = Cpu::new(ram, entry, 0x7FFFEFFC, 0x10008000);
+                cpu.run()?;
+            }, 
+            "2" => {
+                let ram = UnsafeCell::new(ram);
+                let cache: Cache<_, 1, 1024, 1> = Cache::new("L1", &ram, RepPolicy::Random, 1);
+                let mut cpu = Cpu::new(cache, entry, 0x7FFFEFFC, 0x10008000);
+                cpu.run()?;
+            }
+            c => return Err(eyre!("Configuração de memória {} não conhecida!", c)),
+        };
 
-        let cache: Cache<_, 8, 1024, 2> = Cache::new("L1", &ram, RepPolicy::Random, 1);
+        //let cache: Cache<_, 8, 1024, 2> = Cache::new("L1", &ram, RepPolicy::Random, 1);
 
-        let mut cpu = Cpu::new(cache, entry, 0x7FFFEFFC, 0x10008000);
-        cpu.run()?;
+        //let mut cpu = Cpu::new(cache, entry, 0x7FFFEFFC, 0x10008000);
 
         Ok(())
     } else if let Some(matches) = matches.subcommand_matches("runelf") {

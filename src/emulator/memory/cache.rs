@@ -5,7 +5,7 @@ use std::cell::UnsafeCell;
 use log::debug;
 use rand::{ thread_rng, distributions::{ Distribution, Uniform } };
 
-use color_eyre::eyre::{ Result, eyre };
+use color_eyre::eyre::{ Result };
 
 /// As políticas de substituição da cache.
 #[derive(Copy, Clone, Debug)]
