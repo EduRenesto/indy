@@ -1,5 +1,7 @@
 use super::Memory;
 
+use std::cell::UnsafeCell;
+
 use log::debug;
 use rand::{ thread_rng, distributions::{ Distribution, Uniform } };
 
@@ -49,9 +51,9 @@ enum FindLine {
 /// T é o tipo do próximo nível, L é o tamanho em palavras de cada linha,
 /// N é o número de linhas e A é a associatividade da cache. Ou seja,
 /// A=1 tem mapeamento direto, A=N é completamente associativa, etc etc.
-pub struct Cache<T: Memory, const L: usize, const N: usize, const A: usize> {
+pub struct Cache<'a, T: Memory, const L: usize, const N: usize, const A: usize> {
     /// O próximo nível da hierarquia de memória.
-    next: T,
+    next: &'a UnsafeCell<T>,
     /// As linhas da cache.
     lines: [Option<Line<L>>; N],
     /// A política de substituicao das linhas.
@@ -66,7 +68,7 @@ pub struct Cache<T: Memory, const L: usize, const N: usize, const A: usize> {
     misses: usize,
 }
 
-impl<T: Memory, const L: usize, const N: usize, const A: usize> Drop for Cache<T, L, N, A> {
+impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Drop for Cache<'a, T, L, N, A> {
     fn drop(&mut self) {
         let hits = self.accesses - self.misses;
         let hit_rate = (hits as f32) / (self.accesses as f32) * 100.0;
@@ -80,9 +82,9 @@ impl<T: Memory, const L: usize, const N: usize, const A: usize> Drop for Cache<T
 }
 
 /// Implementações comuns a todas as configurações de cache.
-impl<T: Memory, const L: usize, const N: usize, const A: usize> Cache<T, L, N, A> {
+impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T, L, N, A> {
     /// Cria uma nova cache.
-    pub fn new(name: &'static str, next: T, policy: RepPolicy, latency: usize) -> Self {
+    pub fn new(name: &'static str, next: &'a UnsafeCell<T>, policy: RepPolicy, latency: usize) -> Self {
         Cache {
             name,
             next,
@@ -139,8 +141,10 @@ impl<T: Memory, const L: usize, const N: usize, const A: usize> Cache<T, L, N, A
         match &self.lines[line_idx] {
             Some(ref line) if line.dirty => {
                 debug!("cache {}: flushing line {:#010x} to {:#010x}", self.name, line_idx, line.tag);
-                for i in 0..L {
-                    self.next.poke(line.tag + 4*i as u32, line.data[i])?;
+                unsafe {
+                    for i in 0..L {
+                        (&mut *self.next.get()).poke(line.tag + 4*i as u32, line.data[i])?;
+                    }
                 }
 
                 Ok(())
@@ -154,15 +158,19 @@ impl<T: Memory, const L: usize, const N: usize, const A: usize> Cache<T, L, N, A
     fn load_into_line(&mut self, line_idx: usize, base: u32) -> Result<()> {
         debug!("cache {}: loading {:#010x} to line {:#010x}", self.name, base, line_idx);
         if let Some(line) = self.lines[line_idx].as_mut() {
-            for i in 0..L {
-                line.data[i] = self.next.peek(base + 4 * i as u32)?;
+            unsafe {
+                for i in 0..L {
+                    line.data[i] = (&mut *self.next.get()).peek(base + 4 * i as u32)?;
+                }
             }
             line.dirty = false;
             line.tag = base;
         } else {
             let mut data = [0; L];
-            for i in 0..L {
-                data[i] = self.next.peek(base + 4 * i as u32)?;
+            unsafe {
+                for i in 0..L {
+                    data[i] = (&mut *self.next.get()).peek(base + 4 * i as u32)?;
+                }
             }
 
             self.lines[line_idx] = Some(Line {
@@ -176,7 +184,7 @@ impl<T: Memory, const L: usize, const N: usize, const A: usize> Cache<T, L, N, A
     }
 }
 
-impl<T: Memory, const L: usize, const N: usize, const A: usize> Memory for Cache<T, L, N, A> {
+impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory for Cache<'a, T, L, N, A> {
     fn peek(&mut self, addr: u32) -> Result<u32> {
         self.accesses += 1;
 

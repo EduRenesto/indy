@@ -9,6 +9,7 @@ use goblin::elf::Elf;
 
 use std::fs::File;
 use std::io::Read;
+use std::cell::UnsafeCell;
 
 pub(crate) mod emulator;
 
@@ -127,7 +128,9 @@ fn main() -> Result<()> {
             ram.load_slice_into_addr(0x00800000, &data[..])?;
         }
 
-        let cache: Cache<_, 8, 1024, 2> = Cache::new("L1", ram, RepPolicy::Random, 1);
+        let ram = UnsafeCell::new(ram);
+
+        let cache: Cache<_, 8, 1024, 2> = Cache::new("L1", &ram, RepPolicy::Random, 1);
 
         let mut cpu = Cpu::new(cache, entry, 0x7FFFEFFC, 0x10008000);
         cpu.run()?;
@@ -166,7 +169,9 @@ fn main() -> Result<()> {
             }
         }
 
-        let cache: Cache<_, 1, 8, 1> = Cache::new("L1", ram, RepPolicy::Random, 1);
+        let ram = UnsafeCell::new(ram);
+
+        let cache: Cache<_, 1, 8, 1> = Cache::new("L1", &ram, RepPolicy::Random, 1);
 
         // Seta o PC para o entry point do arquivo ELF
         let mut cpu = Cpu::new(cache, elf.entry as u32, 0x7FFFEFFC, 0x10008000);
