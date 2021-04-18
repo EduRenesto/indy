@@ -3,7 +3,7 @@ use super::Memory;
 use std::cell::UnsafeCell;
 
 use log::debug;
-use rand::{ thread_rng, distributions::{ Distribution, Uniform } };
+use rand::{ rngs::ThreadRng, thread_rng, distributions::{ Distribution, Uniform } };
 
 use color_eyre::eyre::{ Result };
 
@@ -66,6 +66,8 @@ pub struct Cache<'a, T: Memory, const L: usize, const N: usize, const A: usize> 
     accesses: usize,
     /// A quantidade de misses.
     misses: usize,
+    /// Um gerador aleatorio para o line replacing.
+    rng: ThreadRng,
 }
 
 impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Drop for Cache<'a, T, L, N, A> {
@@ -93,12 +95,14 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
             latency,
             accesses: 0,
             misses: 0,
+            rng: thread_rng(),
         }
     }
 
     /// Acha a linha em que o endereço está. 
-    fn find_line(&self, addr: u32) -> FindLine {
-        let lines_per_block = N / A;
+    fn find_line(&mut self, addr: u32) -> FindLine {
+        //let lines_per_block = N / A;
+        let lines_per_block = A;
 
         let offset = (addr / 4) as usize % L;
         let base = addr - (4*offset as u32);
@@ -123,9 +127,8 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
         match self.policy {
             RepPolicy::Random => {
                 // TODO da pra tirar umas coisas daq
-                let mut rng = thread_rng();
                 let dist = Uniform::new(0, lines_per_block);
-                let line_idx = block_idx * lines_per_block + dist.sample(&mut rng);
+                let line_idx = block_idx * lines_per_block + dist.sample(&mut self.rng);
 
                 FindLine::Miss(line_idx, offset)
             },

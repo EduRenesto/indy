@@ -14,3 +14,6 @@ minips-macros = { path = "minips-macros" }
 log = "0.4"
 simple_logger = "1.11"
 rand = "0.8"
+
+[profile.release]
+debug = true
