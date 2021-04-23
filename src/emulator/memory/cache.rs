@@ -103,11 +103,12 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
     fn find_line(&mut self, addr: u32) -> FindLine {
         //let lines_per_block = N / A;
         let lines_per_block = A;
+        let n_blocks = N / A;
 
         let offset = (addr / 4) as usize % L;
         let base = addr - (4*offset as u32);
 
-        let block_idx = base as usize % A;
+        let block_idx = (base / 4) as usize % n_blocks;
 
         for i in 0..lines_per_block {
             let line_idx = block_idx * lines_per_block + i;

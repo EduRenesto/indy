@@ -83,6 +83,7 @@ r:
         two_operands_alt: true
     sra:
         funct: 0x03
+        shift: true
 
     syscall:
         funct: 0x0c

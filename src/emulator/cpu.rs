@@ -328,7 +328,7 @@ impl<T: Memory> Cpu<T> {
                     .0;
             }
             Instruction::ADDU(args) => {
-                self.regs[args.rd] = self.regs[args.rs] + self.regs[args.rt];
+                self.regs[args.rd] = self.regs[args.rs].overflowing_add(self.regs[args.rt]).0;
             }
             Instruction::BEQ(args) => {
                 if self.regs[args.rs] == self.regs[args.rt] {
@@ -548,6 +548,19 @@ impl<T: Memory> Cpu<T> {
             }
             Instruction::AND(args) => {
                 self.regs[args.rd] = self.regs[args.rs] & self.regs[args.rt];
+            }
+            Instruction::SUBU(args) => {
+                self.regs[args.rd] = self.regs[args.rs] - self.regs[args.rt];
+            }
+            Instruction::SRA(args) => {
+                let sign = (self.regs[args.rt] & (1 << 31)) >> 31;
+
+                let mut val = self.regs[args.rt] >> args.shamt;
+                for i in args.shamt..=31 {
+                    val |= sign << i;
+                }
+
+                self.regs[args.rd] = val;
             }
             a => return Err(eyre!("Instruction {} not implemented yet!", a)),
         }
