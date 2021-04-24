@@ -1,0 +1,11 @@
+#!/usr/bin/bash
+
+# Troca a ordem dos ultimos dois argumentos.
+
+cargo build --release
+
+if [ $# -ge 3 ]; then
+    echo $@ | awk '{ print $2, $1, $3 }' | xargs ./target/release/minips-rs
+else
+    ./target/release/minips-rs $@
+fi
