@@ -282,11 +282,11 @@ fr:
 
 # Instrucoes FI
 fi:
-    bclt:
+    bc1t:
         opcode: 0x11
         fmt: 0x08
         ft: 0x01
-    bclf:
+    bc1f:
         opcode: 0x11
         fmt: 0x08
         ft: 0x00

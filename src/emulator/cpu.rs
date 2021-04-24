@@ -172,6 +172,9 @@ pub struct Cpu<T: Memory> {
 
     /// Contador de estatísticas.
     stats: StatsReporter,
+
+    /// Condition code do cop1. TODO implementar todos!
+    float_cc: bool,
 }
 
 impl<T: Memory> Cpu<T> {
@@ -189,6 +192,7 @@ impl<T: Memory> Cpu<T> {
             arith_regs: (0, 0),
             float_regs: FloatRegisters([0; 32]),
             stats: StatsReporter::new(),
+            float_cc: false,
         };
 
         cpu.regs[Register(28)] = gp;
@@ -570,6 +574,22 @@ impl<T: Memory> Cpu<T> {
             Instruction::SWC1(args) => {
                 let addr = self.regs[args.rs] as i32 + sign_extend_cast(args.imm, 16);
                 self.mem.poke(addr as u32, self.float_regs[args.rt.into()])?;
+            }
+            Instruction::C_LT_S(args) => {
+                self.float_cc = word_to_single(self.float_regs[args.fs]) < word_to_single(self.float_regs[args.ft]);
+                //println!("{} < {}? {}", self.float_regs[args.fs], self.float_regs[args.ft], self.float_cc);
+            }
+            Instruction::BC1T(args) => {
+                if self.float_cc {
+                    let target = branch_addr(args.imm);
+                    self.branch_to = Some((self.pc as i32 + target + 4) as u32);
+                }
+            }
+            Instruction::BC1F(args) => {
+                if !self.float_cc {
+                    let target = branch_addr(args.imm);
+                    self.branch_to = Some((self.pc as i32 + target + 4) as u32);
+                }
             }
             a => return Err(eyre!("Instruction {} not implemented yet!", a)),
         }
