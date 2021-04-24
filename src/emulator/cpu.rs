@@ -571,6 +571,16 @@ impl<T: Memory> Cpu<T> {
                 let target = branch_addr(args.imm);
                 self.branch_to = Some((self.pc as i32 + target + 4) as u32);
             }
+            Instruction::BGEZ(args) => {
+                // Pq a impl de BAL funciona aq, mas BGEZ nao???? lol
+                //if as_signed(self.regs[args.rs]) >= 0 {
+                //    let target = branch_addr(args.imm);
+                //    self.branch_to = Some((self.pc as i32 + target + 4) as u32);
+                //}
+                self.regs[Register(31)] = self.pc + 4;
+                let target = branch_addr(args.imm);
+                self.branch_to = Some((self.pc as i32 + target + 4) as u32);
+            }
             Instruction::SWC1(args) => {
                 let addr = self.regs[args.rs] as i32 + sign_extend_cast(args.imm, 16);
                 self.mem.poke(addr as u32, self.float_regs[args.rt.into()])?;

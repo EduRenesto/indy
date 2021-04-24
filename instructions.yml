@@ -108,7 +108,6 @@ i:
         opcode: 0x09
     andi:
         opcode: 0x0C
-        sign_ext: false
     beq:
         opcode: 0x04
         invert: true
@@ -132,7 +131,6 @@ i:
         load_store: true
     ori:
         opcode: 0x0D
-        sign_ext: false
     slti:
         opcode: 0x0A
     sltiu:
@@ -150,6 +148,9 @@ i:
         opcode: 0x06
         two_operands: true
     bal:
+        opcode: 0x11
+        two_operands: true
+    bgez:
         opcode: 0x01
         two_operands: true
 
@@ -224,6 +225,7 @@ fr:
         opcode: 0x11
         fmt: 0x10
         funct: 0x3c
+        two_operands_alt: true
     c.le.s:
         opcode: 0x11
         fmt: 0x11

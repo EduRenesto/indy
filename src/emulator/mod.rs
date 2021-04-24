@@ -15,7 +15,7 @@ pub use memory::Ram as Memory;
 ///
 /// Esse idiom é útil aqui para podermos implementar os aliases dos
 /// registradores para o disassemble.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub struct Register(u32);
 
 impl std::ops::Add<u32> for Register {

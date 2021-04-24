@@ -46,6 +46,7 @@ pub(crate) struct FRInstruction {
     pub(crate) fmt: u32,
     pub(crate) funct: u32,
     pub(crate) two_operands: Option<bool>,
+    pub(crate) two_operands_alt: Option<bool>,
     pub(crate) first_is_float: Option<bool>,
 }
 

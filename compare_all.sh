@@ -17,7 +17,12 @@ tests=("01.soma"
     "13.arit"
     "14.flutuantes"
     "15.pi"
-    "16.automato")
+    "16.automato"
+    "17.rng"
+    "18.naive_dgemm"
+    "19.regular_dgemm"
+    "20.blocking_dgemm"
+    "21.mandelbrot")
 
 for i in ${tests[@]}; do
     echo -en "=> Rodando $i..."

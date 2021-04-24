@@ -23,7 +23,11 @@ fn generate_r_fmt((name, instr): (&String, &RInstruction)) -> TokenStream {
         c.into()
     } else if instr.two_operands.unwrap_or(false) {
         let c = quote! {
-            write!(f, "{} {}, {}", #name, a.rd, a.rs)
+            if a.rd == Register(31) {
+                write!(f, "{} {}", #name, a.rs)
+            } else {
+                write!(f, "{} {}, {}", #name, a.rd, a.rs)
+            }
         };
 
         c.into()
@@ -151,6 +155,10 @@ fn generate_fr_fmt((name, instr): (&String, &FRInstruction)) -> TokenStream {
                 &Instruction:: #ename_ident (ref a) => write!(f, "{} {}, {}", #name, a.fd, a.fs),
             }
         }
+    } else if instr.two_operands_alt.unwrap_or(false) {
+        quote! {
+            &Instruction:: #ename_ident (ref a) => write!(f, "{} {}, {}", #name, a.fs, a.ft),
+        }
     } else {
         quote! {
             &Instruction:: #ename_ident (ref a) => write!(f, "{} {}, {}, {}", #name, a.fd, a.fs, a.ft),
@@ -167,7 +175,7 @@ fn generate_fi_fmt((name, _instr): (&String, &FIInstruction)) -> TokenStream {
     let ename_ident = Ident::new(&ename, Span::call_site());
 
     let code = quote! {
-        &Instruction:: #ename_ident (ref a) => write!(f, "{} {} {:#x} # {:#x}", #name, a.ft, a.imm, a.imm * 4),
+        &Instruction:: #ename_ident (ref a) => write!(f, "{} {}", #name, sign_extend_cast(a.imm, 16)),
     };
 
     code.into()
