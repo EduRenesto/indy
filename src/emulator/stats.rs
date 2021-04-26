@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use crate::emulator::Instruction;
 
-use color_eyre::eyre::{ Result, eyre };
+use color_eyre::eyre::{eyre, Result};
 
 pub struct StatsReporter {
     n_instructions: [usize; 5],
@@ -32,21 +32,26 @@ impl StatsReporter {
     }
 
     pub fn print_stats(&self) -> Result<()> {
-        let start = *self.start.as_ref().ok_or(eyre!("StatsReporter did not start!"))?;
-        let finish = *self.finish.as_ref().ok_or(eyre!("StatsReporter did not finish!"))?;
+        let start = *self
+            .start
+            .as_ref()
+            .ok_or(eyre!("StatsReporter did not start!"))?;
+        let finish = *self
+            .finish
+            .as_ref()
+            .ok_or(eyre!("StatsReporter did not finish!"))?;
 
         let delta = finish - start;
 
-        let total: usize = self.n_instructions
-            .iter()
-            .sum();
+        let total: usize = self.n_instructions.iter().sum();
 
         let ips = total as f64 / delta.as_secs_f64();
 
         println!("");
         println!("Execution finished successfully!");
         println!("--------------------------");
-        println!("Instruction count: {} (R: {} I: {} J: {} FR: {} FI: {})",
+        println!(
+            "Instruction count: {} (R: {} I: {} J: {} FR: {} FI: {})",
             total,
             self.n_instructions[0],
             self.n_instructions[1],

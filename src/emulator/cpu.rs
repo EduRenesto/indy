@@ -3,15 +3,16 @@
 //! Note que um tema comum nesse arquivo é a utilização do idiom `newtype`
 //! (mesma ideia que em Haskell :p).
 
+use super::memory::Memory;
 use super::FloatRegister;
 use super::Instruction;
-use super::memory::Memory;
 use super::Register;
 
 use super::instr::{branch_addr, jump_addr, sign_extend, sign_extend_cast};
 
 use super::stats::StatsReporter;
 
+use std::cell::UnsafeCell;
 use std::convert::TryInto;
 use std::io::Write;
 
@@ -144,13 +145,15 @@ impl std::ops::IndexMut<FloatRegister> for FloatRegisters {
 }
 
 /// Essa struct encapsula o estado da CPU, assim como a instância da memória.
-pub struct Cpu<T: Memory> {
+pub struct Cpu<'a, TD: Memory, TI: Memory> {
     /// 32 registradores de 32 bits.
     regs: Registers,
 
-    /// A instância da memória ligada a CPU atual.
-    /// No futuro, trocarei por uma MMU para fazer caching e mapping.
-    mem: T,
+    /// A instância da memória de dados ligada a CPU atual.
+    mem: &'a UnsafeCell<TD>,
+
+    /// A instância da memória de instruções ligada a CPU atual.
+    imem: &'a UnsafeCell<TI>,
 
     /// O program counter.
     pc: u32,
@@ -177,14 +180,20 @@ pub struct Cpu<T: Memory> {
     float_cc: bool,
 }
 
-impl<T: Memory> Cpu<T> {
+impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
     /// Cria uma nova instância da CPU, colocando o program counter no
     /// endereço `start` especificado.
-    pub fn new(mem: T, start: u32, sp: u32, gp: u32) -> Self {
-        // TODO set gp, sp
+    pub fn new(
+        mem: &'a UnsafeCell<TD>,
+        imem: &'a UnsafeCell<TI>,
+        start: u32,
+        sp: u32,
+        gp: u32,
+    ) -> Self {
         let mut cpu = Cpu {
             regs: Registers([0; 32]),
             mem,
+            imem,
             pc: start,
             in_delay_slot: false,
             branch_to: None,
@@ -199,18 +208,6 @@ impl<T: Memory> Cpu<T> {
         cpu.regs[Register(29)] = sp;
 
         cpu
-    }
-
-    /// Retorna uma referência para o objeto Memory associado a essa CPU.
-    #[allow(dead_code)]
-    pub fn memory(&self) -> &T {
-        &self.mem
-    }
-
-    /// Retorna uma referência mutável para o objeto Memory associado a essa CPU.
-    #[allow(dead_code)]
-    pub fn memory_mut(&mut self) -> &mut T {
-        &mut self.mem
     }
 
     /// Executa a instrução apontada pelo program counter atual. Retorna
@@ -366,12 +363,11 @@ impl<T: Memory> Cpu<T> {
                     };
             }
             Instruction::SLTU(args) => {
-                self.regs[args.rd] =
-                    if self.regs[args.rs] < self.regs[args.rt] {
-                        1
-                    } else {
-                        0
-                    };
+                self.regs[args.rd] = if self.regs[args.rs] < self.regs[args.rt] {
+                    1
+                } else {
+                    0
+                };
             }
             Instruction::JR(args) => {
                 self.branch_to = Some(self.regs[args.rs] + 4);
@@ -583,10 +579,12 @@ impl<T: Memory> Cpu<T> {
             }
             Instruction::SWC1(args) => {
                 let addr = self.regs[args.rs] as i32 + sign_extend_cast(args.imm, 16);
-                self.mem.poke(addr as u32, self.float_regs[args.rt.into()])?;
+                self.mem
+                    .poke(addr as u32, self.float_regs[args.rt.into()])?;
             }
             Instruction::C_LT_S(args) => {
-                self.float_cc = word_to_single(self.float_regs[args.fs]) < word_to_single(self.float_regs[args.ft]);
+                self.float_cc = word_to_single(self.float_regs[args.fs])
+                    < word_to_single(self.float_regs[args.ft]);
                 //println!("{} < {}? {}", self.float_regs[args.fs], self.float_regs[args.ft], self.float_cc);
             }
             Instruction::BC1T(args) => {

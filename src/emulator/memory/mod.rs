@@ -1,11 +1,14 @@
 use color_eyre::eyre::Result;
 
-pub mod ram;
 pub mod cache;
+pub mod ram;
+pub mod reporter;
 
 // TODO remover depois da integracao
+pub use cache::{Cache, RepPolicy};
 pub use ram::Ram;
-pub use cache::{ Cache, RepPolicy };
+
+use std::cell::UnsafeCell;
 
 pub trait Memory {
     /// Lê o valor armazenado no endereço `addr`.
@@ -38,5 +41,25 @@ pub trait Memory {
         }
 
         Ok(())
+    }
+}
+
+impl<'a, T: Memory> Memory for &'a UnsafeCell<T> {
+    fn peek(&mut self, addr: u32) -> Result<u32> {
+        unsafe {
+            (&mut *self.get()).peek(addr)
+        }
+    }
+
+    fn poke(&mut self, addr: u32, val: u32) -> Result<()> {
+        unsafe {
+            (&mut *self.get()).poke(addr, val)
+        }
+    }
+
+    fn dump(&self) -> Result<()> {
+        unsafe {
+            (&*self.get()).dump()
+        }
     }
 }

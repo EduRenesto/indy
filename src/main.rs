@@ -4,18 +4,18 @@
 //! Implementação do emulador em si está no módulo `emulator`.
 
 use clap::{crate_version, App, Arg, SubCommand};
-use color_eyre::eyre::{ Result, eyre };
+use color_eyre::eyre::{eyre, Result};
 use goblin::elf::Elf;
 
+use std::cell::UnsafeCell;
 use std::fs::File;
 use std::io::Read;
-use std::cell::UnsafeCell;
 
 pub(crate) mod emulator;
 
+use emulator::memory::{Cache, Memory, Ram, RepPolicy};
 use emulator::Cpu;
 use emulator::Instruction;
-use emulator::memory::{ Memory, Ram, Cache, RepPolicy };
 
 /// Carrega o arquivo num vetor de palavras de 32 bits.
 fn u32_vec_from_file(mut file: File) -> Vec<u32> {
@@ -133,13 +133,14 @@ fn main() -> Result<()> {
 
         match mem_cfg {
             "1" => {
-                let mut cpu = Cpu::new(ram, entry, 0x7FFFEFFC, 0x10008000);
+                let ram = UnsafeCell::new(ram);
+                let mut cpu = Cpu::new(&ram, &ram, entry, 0x7FFFEFFC, 0x10008000);
                 cpu.run()?;
-            }, 
+            }
             "2" => {
                 let ram = UnsafeCell::new(ram);
-                let cache: Cache<_, 1, 1024, 1> = Cache::new("L1", &ram, RepPolicy::Random, 1);
-                let mut cpu = Cpu::new(cache, entry, 0x7FFFEFFC, 0x10008000);
+                let cache: UnsafeCell<Cache<_, 1, 1024, 1>> = UnsafeCell::new(Cache::new("L1", &ram, RepPolicy::Random, 1));
+                let mut cpu = Cpu::new(&cache, &cache, entry, 0x7FFFEFFC, 0x10008000);
                 cpu.run()?;
             }
             c => return Err(eyre!("Configuração de memória {} não conhecida!", c)),
@@ -184,11 +185,10 @@ fn main() -> Result<()> {
         }
 
         let ram = UnsafeCell::new(ram);
-
-        let cache: Cache<_, 1, 8, 1> = Cache::new("L1", &ram, RepPolicy::Random, 1);
+        let cache: UnsafeCell<Cache<_, 1, 8, 1>> = UnsafeCell::new(Cache::new("L1", &ram, RepPolicy::Random, 1));
 
         // Seta o PC para o entry point do arquivo ELF
-        let mut cpu = Cpu::new(cache, elf.entry as u32, 0x7FFFEFFC, 0x10008000);
+        let mut cpu = Cpu::new(&cache, &cache, elf.entry as u32, 0x7FFFEFFC, 0x10008000);
 
         cpu.run()?;
 
