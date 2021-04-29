@@ -14,6 +14,9 @@ pub trait Memory {
     /// Lê o valor armazenado no endereço `addr`.
     fn peek(&mut self, addr: u32) -> Result<u32>;
 
+    /// Lê a instrução armazenada no endereço `addr`.
+    fn peek_instruction(&mut self, addr: u32) -> Result<u32>;
+
     /// Escreve o valor `val` no endereço `addr`.
     fn poke(&mut self, addr: u32, val: u32) -> Result<()>;
 
@@ -44,22 +47,22 @@ pub trait Memory {
     }
 }
 
+// LOL, eu não sabia que podia fazer isso!
+// Type system lindo!
 impl<'a, T: Memory> Memory for &'a UnsafeCell<T> {
     fn peek(&mut self, addr: u32) -> Result<u32> {
-        unsafe {
-            (&mut *self.get()).peek(addr)
-        }
+        unsafe { (&mut *self.get()).peek(addr) }
+    }
+
+    fn peek_instruction(&mut self, addr: u32) -> Result<u32> {
+        unsafe { (&mut *self.get()).peek_instruction(addr) }
     }
 
     fn poke(&mut self, addr: u32, val: u32) -> Result<()> {
-        unsafe {
-            (&mut *self.get()).poke(addr, val)
-        }
+        unsafe { (&mut *self.get()).poke(addr, val) }
     }
 
     fn dump(&self) -> Result<()> {
-        unsafe {
-            (&*self.get()).dump()
-        }
+        unsafe { (&*self.get()).dump() }
     }
 }

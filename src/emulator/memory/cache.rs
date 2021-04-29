@@ -1,6 +1,8 @@
+use super::reporter::MemoryEvent;
 use super::Memory;
 
 use std::cell::UnsafeCell;
+use std::sync::mpsc::Sender;
 
 use log::debug;
 use rand::{
@@ -76,6 +78,8 @@ pub struct Cache<'a, T: Memory, const L: usize, const N: usize, const A: usize> 
     misses: usize,
     /// Um gerador aleatorio para o line replacing.
     rng: ThreadRng,
+    /// O write-end de um Memory Reporter.
+    reporter: Option<Sender<MemoryEvent>>,
 }
 
 impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Drop for Cache<'a, T, L, N, A> {
@@ -98,6 +102,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
         next: &'a UnsafeCell<T>,
         policy: RepPolicy,
         latency: usize,
+        reporter: Option<Sender<MemoryEvent>>,
     ) -> Self {
         Cache {
             name,
@@ -108,6 +113,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
             accesses: 0,
             misses: 0,
             rng: thread_rng(),
+            reporter,
         }
     }
 
@@ -204,12 +210,9 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
 
         Ok(())
     }
-}
 
-impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
-    for Cache<'a, T, L, N, A>
-{
-    fn peek(&mut self, addr: u32) -> Result<u32> {
+    /// Lógica compartilhada
+    fn do_peek(&mut self, addr: u32) -> Result<(usize, u32)> {
         self.accesses += 1;
 
         let offset = (addr / 4) as usize % L;
@@ -223,7 +226,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
                 );
 
                 let line = self.lines[line_idx].unwrap();
-                Ok(line.data[offset])
+                Ok((line_idx, line.data[offset]))
             }
             FindLine::Miss(line_idx, offset) => {
                 self.misses += 1;
@@ -238,9 +241,33 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
 
                 let line = self.lines[line_idx].unwrap();
 
-                Ok(line.data[offset])
+                Ok((line_idx, line.data[offset]))
             }
         }
+    }
+}
+
+impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
+    for Cache<'a, T, L, N, A>
+{
+    fn peek(&mut self, addr: u32) -> Result<u32> {
+        let (line_idx, data) = self.do_peek(addr)?;
+
+        if let Some(ref tx) = self.reporter {
+            tx.send(MemoryEvent::DataRead(addr, line_idx))?;
+        }
+
+        Ok(data)
+    }
+
+    fn peek_instruction(&mut self, addr: u32) -> Result<u32> {
+        let (line_idx, data) = self.do_peek(addr)?;
+
+        if let Some(ref tx) = self.reporter {
+            tx.send(MemoryEvent::InstrRead(addr, line_idx))?;
+        }
+
+        Ok(data)
     }
 
     fn poke(&mut self, addr: u32, val: u32) -> Result<()> {
@@ -258,6 +285,10 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
                 let mut line = self.lines[line_idx].as_mut().unwrap();
                 line.data[offset] = val;
                 line.dirty = true;
+
+                if let Some(ref tx) = self.reporter {
+                    tx.send(MemoryEvent::Write(addr, line_idx))?;
+                }
             }
             FindLine::Miss(line_idx, offset) => {
                 self.misses += 1;
@@ -273,6 +304,10 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
                 let mut line = self.lines[line_idx].as_mut().unwrap();
                 line.data[offset] = val;
                 line.dirty = true;
+
+                if let Some(ref tx) = self.reporter {
+                    tx.send(MemoryEvent::Write(addr, line_idx))?;
+                }
             }
         }
 

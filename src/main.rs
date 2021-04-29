@@ -13,7 +13,7 @@ use std::io::Read;
 
 pub(crate) mod emulator;
 
-use emulator::memory::{Cache, Memory, Ram, RepPolicy};
+use emulator::memory::{reporter::*, Cache, Memory, Ram, RepPolicy};
 use emulator::Cpu;
 use emulator::Instruction;
 
@@ -84,6 +84,27 @@ fn main() -> Result<()> {
                 .arg(Arg::with_name("file").index(1).required(true)),
         )
         .subcommand(
+            SubCommand::with_name("trace")
+                .about("Carrega o binário e o executa, escrevendo os acessos de memória no arquivo.")
+                .arg(
+                    Arg::with_name("entry")
+                        .long("entry")
+                        .short("e")
+                        .required(false)
+                        .default_value("0x00400000")
+                        .help("Endereço da primeira instrução"),
+                )
+                .arg(
+                    Arg::with_name("outfile")
+                        .long("outfile")
+                        .short("o")
+                        .required(false)
+                        .default_value("minips.trace")
+                        .help("Arquivo onde escrever os acessos de memória"),
+                )
+                .arg(Arg::with_name("file").index(1).required(true)),
+        )
+        .subcommand(
             SubCommand::with_name("runelf")
                 .about("Carrega um arquivo ELF e o executa (bonus!)")
                 .arg(Arg::with_name("file").index(1).required(true)),
@@ -139,7 +160,8 @@ fn main() -> Result<()> {
             }
             "2" => {
                 let ram = UnsafeCell::new(ram);
-                let cache: UnsafeCell<Cache<_, 1, 1024, 1>> = UnsafeCell::new(Cache::new("L1", &ram, RepPolicy::Random, 1));
+                let cache: UnsafeCell<Cache<_, 1, 1024, 1>> =
+                    UnsafeCell::new(Cache::new("L1", &ram, RepPolicy::Random, 1, None));
                 let mut cpu = Cpu::new(&cache, &cache, entry, 0x7FFFEFFC, 0x10008000);
                 cpu.run()?;
             }
@@ -149,6 +171,52 @@ fn main() -> Result<()> {
         //let cache: Cache<_, 8, 1024, 2> = Cache::new("L1", &ram, RepPolicy::Random, 1);
 
         //let mut cpu = Cpu::new(cache, entry, 0x7FFFEFFC, 0x10008000);
+
+        Ok(())
+    } else if let Some(matches) = matches.subcommand_matches("trace") {
+        let mut ram = Ram::new();
+
+        // Executa o binário
+        let entry = u32::from_str_radix(&matches.value_of("entry").unwrap()[2..], 16)?;
+        let executable = Executable::from_naked_files(matches.value_of("file").unwrap())?;
+
+        //let mut cpu = Cpu::new(0x00400000, 0x7FFFEFFC, 0x10008000);
+
+        ram.load_slice_into_addr(0x00400000, &executable.text[..])?;
+        if let Some(ref data) = executable.data {
+            ram.load_slice_into_addr(0x10010000, &data[..])?;
+        }
+        if let Some(ref data) = executable.rodata {
+            ram.load_slice_into_addr(0x00800000, &data[..])?;
+        }
+
+        let out_file = matches.value_of("outfile").unwrap();
+        let out_file = File::create(out_file)?;
+        let (rep_thread, tx) = MemoryReporter::new(out_file);
+
+        match mem_cfg {
+            "1" => {
+                let ram = UnsafeCell::new(ram);
+                let mut cpu = Cpu::new(&ram, &ram, entry, 0x7FFFEFFC, 0x10008000);
+                cpu.run()?;
+            }
+            "2" => {
+                let ram = UnsafeCell::new(ram);
+                let cache: UnsafeCell<Cache<_, 1, 1024, 1>> = UnsafeCell::new(Cache::new(
+                    "L1",
+                    &ram,
+                    RepPolicy::Random,
+                    1,
+                    Some(tx.clone()),
+                ));
+                let mut cpu = Cpu::new(&cache, &cache, entry, 0x7FFFEFFC, 0x10008000);
+                cpu.run()?;
+            }
+            c => return Err(eyre!("Configuração de memória {} não conhecida!", c)),
+        };
+
+        tx.send(MemoryEvent::Finish).unwrap();
+        rep_thread.join().unwrap();
 
         Ok(())
     } else if let Some(matches) = matches.subcommand_matches("runelf") {
@@ -185,7 +253,8 @@ fn main() -> Result<()> {
         }
 
         let ram = UnsafeCell::new(ram);
-        let cache: UnsafeCell<Cache<_, 1, 8, 1>> = UnsafeCell::new(Cache::new("L1", &ram, RepPolicy::Random, 1));
+        let cache: UnsafeCell<Cache<_, 1, 8, 1>> =
+            UnsafeCell::new(Cache::new("L1", &ram, RepPolicy::Random, 1, None));
 
         // Seta o PC para o entry point do arquivo ELF
         let mut cpu = Cpu::new(&cache, &cache, elf.entry as u32, 0x7FFFEFFC, 0x10008000);

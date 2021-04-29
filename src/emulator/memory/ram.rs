@@ -43,6 +43,14 @@ impl Memory for Ram {
         Ok(*self.memory.get(&addr).unwrap_or(&0))
     }
 
+    fn peek_instruction(&mut self, addr: u32) -> Result<u32> {
+        check_alignment!(addr);
+
+        //println!("mem: read {:#010x}", addr);
+
+        Ok(*self.memory.get(&addr).unwrap_or(&0))
+    }
+
     /// Modifica um valor no endereço especificado.
     fn poke(&mut self, addr: u32, val: u32) -> Result<()> {
         check_alignment!(addr);
