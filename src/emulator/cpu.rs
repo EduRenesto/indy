@@ -260,14 +260,23 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
                     }
                     4 => {
                         let mut addr = self.regs[Register(4)];
-                        //println!("syscall: string at {:#x}", addr);
+                        let mut byte_offset = addr % 4;
+                        addr = addr - byte_offset;
 
-                        let mut val = self.mem.peek_unaligned(addr)?;
+                        'outer: loop {
+                            let val = self.mem.peek(addr)?.to_le_bytes();
 
-                        while val != 0 {
-                            print!("{}", val as char);
-                            addr += 1;
-                            val = self.mem.peek_unaligned(addr)?;
+                            for i in byte_offset..4 {
+                                let c = val[i as usize];
+                                if c != 0 {
+                                    print!("{}", c as char)
+                                } else {
+                                    break 'outer;
+                                }
+                            }
+
+                            addr += 4;
+                            byte_offset = 0;
                         }
                     }
                     5 => {
