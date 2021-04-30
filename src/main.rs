@@ -160,7 +160,7 @@ fn main() -> Result<()> {
             }
             "2" => {
                 let ram = UnsafeCell::new(ram);
-                let cache: UnsafeCell<Cache<_, 1, 1024, 1>> =
+                let cache: UnsafeCell<Cache<_, 8, 32, 1>> =
                     UnsafeCell::new(Cache::new("L1", &ram, RepPolicy::Random, 1, None));
                 let mut cpu = Cpu::new(&cache, &cache, entry, 0x7FFFEFFC, 0x10008000);
                 cpu.run()?;
@@ -202,7 +202,7 @@ fn main() -> Result<()> {
             }
             "2" => {
                 let ram = UnsafeCell::new(ram);
-                let cache: UnsafeCell<Cache<_, 1, 1024, 1>> = UnsafeCell::new(Cache::new(
+                let cache: UnsafeCell<Cache<_, 8, 32, 1>> = UnsafeCell::new(Cache::new(
                     "L1",
                     &ram,
                     RepPolicy::Random,

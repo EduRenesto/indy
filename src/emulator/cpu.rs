@@ -224,7 +224,7 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
             _ => {}
         }
 
-        let word = self.mem.peek(self.pc)?;
+        let word = self.imem.peek_instruction(self.pc)?;
 
         let instr = Instruction::decode(word)?;
         self.stats.add_instr(&instr);
