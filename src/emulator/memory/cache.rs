@@ -491,11 +491,11 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
 
     fn print_stats(&self, recurse: bool) {
         let hits = self.accesses - self.misses;
-        let miss_rate = (hits as f32) / (self.accesses as f32);
+        let miss_rate = (self.misses as f32) / (self.accesses as f32);
 
         println!(
             "{:>5}  {:>12}  {:>12}  {:>12}   {:>8.2}%",
-            self.name, hits, self.misses, self.accesses, miss_rate,
+            self.name, hits, self.misses, self.accesses, miss_rate * 100.0,
         );
 
         if recurse {

@@ -152,6 +152,8 @@ fn main() -> Result<()> {
             ram.load_slice_into_addr(0x00800000, &data[..])?;
         }
 
+        ram.reset_stats();
+
         match mem_cfg {
             "1" => {
                 let ram = UnsafeCell::new(ram);
@@ -163,6 +165,15 @@ fn main() -> Result<()> {
                 let cache: UnsafeCell<Cache<_, 8, 32, 1>> =
                     UnsafeCell::new(Cache::new("L1", &ram, RepPolicy::Random, 1, None));
                 let mut cpu = Cpu::new(&cache, &cache, entry, 0x7FFFEFFC, 0x10008000);
+                cpu.run()?;
+            }
+            "3" => {
+                let ram = UnsafeCell::new(ram);
+                let l1d: UnsafeCell<Cache<_, 8, 16, 1>> =
+                    UnsafeCell::new(Cache::new("L1d", &ram, RepPolicy::Random, 1, None));
+                let l1i: UnsafeCell<Cache<_, 8, 16, 1>> =
+                    UnsafeCell::new(Cache::new("L1i", &ram, RepPolicy::Random, 1, None));
+                let mut cpu = Cpu::new(&l1d, &l1i, entry, 0x7FFFEFFC, 0x10008000);
                 cpu.run()?;
             }
             c => return Err(eyre!("Configuração de memória {} não conhecida!", c)),

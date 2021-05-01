@@ -34,6 +34,11 @@ impl Ram {
             accesses: 0,
         }
     }
+
+    /// Reseta a contagem de acessos.
+    pub fn reset_stats(&mut self) {
+        self.accesses = 0;
+    }
 }
 
 impl Memory for Ram {
