@@ -136,7 +136,7 @@ fn main() -> Result<()> {
 
         Ok(())
     } else if let Some(matches) = matches.subcommand_matches("run") {
-        let mut ram = Ram::new();
+        let mut ram = Ram::new(100);
 
         // Executa o binário
         let entry = u32::from_str_radix(&matches.value_of("entry").unwrap()[2..], 16)?;
@@ -174,7 +174,7 @@ fn main() -> Result<()> {
 
         Ok(())
     } else if let Some(matches) = matches.subcommand_matches("trace") {
-        let mut ram = Ram::new();
+        let mut ram = Ram::new(100);
 
         // Executa o binário
         let entry = u32::from_str_radix(&matches.value_of("entry").unwrap()[2..], 16)?;
@@ -220,7 +220,7 @@ fn main() -> Result<()> {
 
         Ok(())
     } else if let Some(matches) = matches.subcommand_matches("runelf") {
-        let mut ram = Ram::new();
+        let mut ram = Ram::new(100);
 
         // Executa o elf
         let mut file = File::open(matches.value_of("file").unwrap())?;

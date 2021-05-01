@@ -10,15 +10,29 @@ pub use ram::Ram;
 
 use std::cell::UnsafeCell;
 
+/// Armazena os status de acesso do dispositivo de memória.
+pub struct MemoryStats {
+    pub accesses: usize,
+    pub misses: usize,
+}
+
+/// Interface geral de um dispositivo de memória.
 pub trait Memory {
-    /// Lê o valor armazenado no endereço `addr`.
-    fn peek(&mut self, addr: u32) -> Result<u32>;
+    /// Lê o valor armazenado no endereço `addr`. Retorna uma tupla contendo
+    /// o valor e o total de ciclos gasto.
+    fn peek(&mut self, addr: u32) -> Result<(u32, usize)>;
 
-    /// Lê a instrução armazenada no endereço `addr`.
-    fn peek_instruction(&mut self, addr: u32) -> Result<u32>;
+    /// Lê a instrução armazenada no endereço `addr`. Retorna uma tupla contendo
+    /// o valor e o total de ciclos gasto.
+    fn peek_instruction(&mut self, addr: u32) -> Result<(u32, usize)>;
 
-    /// Escreve o valor `val` no endereço `addr`.
-    fn poke(&mut self, addr: u32, val: u32) -> Result<()>;
+    /// Escreve o valor `val` no endereço `addr`. Retorna o total de ciclos gasto.
+    fn poke(&mut self, addr: u32, val: u32) -> Result<usize>;
+
+    /// Escreve as estatísticas de acesso na saída padrão.
+    /// Se `recurse` é `true` e a memória tem outros níveis abaixo,
+    /// então também mostra as estatísticas dessa.
+    fn print_stats(&self, recurse: bool);
 
     /// Mostra o conteúdo desse nível de memória. Apenas para debugging.
     fn dump(&self) -> Result<()>;
@@ -29,7 +43,7 @@ pub trait Memory {
         let base = addr & 0xFFFFFFFC; // alinha pro lowest multiplo de 4
         let offset = addr - base; // offset agora armazena qual é o byte desejado
 
-        let word = self.peek(base)?;
+        let word = self.peek(base)?.0;
 
         //Ok(((word & (0xFF << offset )) >> offset) as u8)
         Ok(word.to_le_bytes()[offset as usize])
@@ -50,19 +64,23 @@ pub trait Memory {
 // LOL, eu não sabia que podia fazer isso!
 // Type system lindo!
 impl<'a, T: Memory> Memory for &'a UnsafeCell<T> {
-    fn peek(&mut self, addr: u32) -> Result<u32> {
+    fn peek(&mut self, addr: u32) -> Result<(u32, usize)> {
         unsafe { (&mut *self.get()).peek(addr) }
     }
 
-    fn peek_instruction(&mut self, addr: u32) -> Result<u32> {
+    fn peek_instruction(&mut self, addr: u32) -> Result<(u32, usize)> {
         unsafe { (&mut *self.get()).peek_instruction(addr) }
     }
 
-    fn poke(&mut self, addr: u32, val: u32) -> Result<()> {
+    fn poke(&mut self, addr: u32, val: u32) -> Result<usize> {
         unsafe { (&mut *self.get()).poke(addr, val) }
     }
 
     fn dump(&self) -> Result<()> {
         unsafe { (&*self.get()).dump() }
+    }
+
+    fn print_stats(&self, recurse: bool) {
+        unsafe { (&*self.get()).print_stats(recurse) }
     }
 }

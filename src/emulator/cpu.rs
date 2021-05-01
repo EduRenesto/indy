@@ -224,20 +224,28 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
             _ => {}
         }
 
-        let word = self.imem.peek_instruction(self.pc)?;
+        let (word, fetch_latency) = self.imem.peek_instruction(self.pc)?;
 
         let instr = Instruction::decode(word)?;
         self.stats.add_instr(&instr);
-        debug!("{:#010x}: {}", self.pc, instr);
+        self.stats.add_cycles(fetch_latency);
+        debug!(
+            "{:#010x}: {}; fetch: {} cycles",
+            self.pc, instr, fetch_latency
+        );
         match instr {
-            Instruction::NOP => {}
+            Instruction::NOP => {
+                self.stats.add_cycles(1);
+            }
             Instruction::ADD(args) => {
                 self.regs[args.rd] = self.regs[args.rs].overflowing_add(self.regs[args.rt]).0;
+                self.stats.add_cycles(1);
             }
             Instruction::ADDI(args) => {
                 self.regs[args.rt] = self.regs[args.rs]
                     .overflowing_add(sign_extend(args.imm, 16))
                     .0;
+                self.stats.add_cycles(1);
             }
             Instruction::SYSCALL(_) => {
                 //println!("debug: syscall");
@@ -245,9 +253,11 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
                 match self.regs[Register(2)] {
                     1 => {
                         print!("{}", as_signed(self.regs[Register(4)]));
+                        self.stats.add_cycles(1);
                     }
                     2 => {
                         print!("{}", word_to_single(self.float_regs[FloatRegister(12)]));
+                        self.stats.add_cycles(1);
                     }
                     3 => {
                         print!(
@@ -257,14 +267,23 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
                                 self.float_regs[FloatRegister(13)]
                             )
                         );
+                        self.stats.add_cycles(1);
                     }
                     4 => {
                         let mut addr = self.regs[Register(4)];
                         let mut byte_offset = addr % 4;
                         addr = addr - byte_offset;
 
+                        let mut total_cycles = 0;
+
                         'outer: loop {
-                            let val = self.mem.peek(addr)?.to_le_bytes();
+                            let (val, cycles) = self.mem.peek(addr)?;
+                            let val = val.to_le_bytes();
+
+                            //if cycles > total_cycles {
+                            //    total_cycles = cycles;
+                            //}
+                            self.stats.add_cycles(cycles);
 
                             for i in byte_offset..4 {
                                 let c = val[i as usize];
@@ -278,6 +297,8 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
                             addr += 4;
                             byte_offset = 0;
                         }
+
+                        self.stats.add_cycles(total_cycles);
                     }
                     5 => {
                         let mut input = String::new();
@@ -286,6 +307,8 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
                         let val = input.trim().parse::<i32>()?;
 
                         self.regs[Register(2)] = as_unsigned(val);
+
+                        self.stats.add_cycles(1);
                     }
                     6 => {
                         let mut input = String::new();
@@ -294,6 +317,8 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
                         let val = input.trim().parse::<f32>()?;
 
                         self.float_regs[FloatRegister(0)] = single_to_word(val);
+
+                        self.stats.add_cycles(1);
                     }
                     7 => {
                         let mut input = String::new();
@@ -305,13 +330,16 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
 
                         self.float_regs[FloatRegister(0)] = lo;
                         self.float_regs[FloatRegister(1)] = hi;
+                        self.stats.add_cycles(1);
                     }
                     10 => {
                         self.halt = true;
+                        self.stats.add_cycles(1);
                         self.stats.finish();
                     }
                     11 => {
                         print!("{}", self.regs[Register(4)] as u8 as char);
+                        self.stats.add_cycles(1);
                     }
                     500 => {
                         self.mem.dump()?;
@@ -328,17 +356,21 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
             Instruction::LUI(args) => {
                 let val = args.imm << (32 - 16);
                 self.regs[args.rt] = val;
+                self.stats.add_cycles(1);
             }
             Instruction::ORI(args) => {
                 self.regs[args.rt] = self.regs[args.rs] | args.imm;
+                self.stats.add_cycles(1);
             }
             Instruction::ADDIU(args) => {
                 self.regs[args.rt] = self.regs[args.rs]
                     .overflowing_add(sign_extend(args.imm, 16))
                     .0;
+                self.stats.add_cycles(1);
             }
             Instruction::ADDU(args) => {
                 self.regs[args.rd] = self.regs[args.rs].overflowing_add(self.regs[args.rt]).0;
+                self.stats.add_cycles(1);
             }
             Instruction::BEQ(args) => {
                 if self.regs[args.rs] == self.regs[args.rt] {
@@ -346,22 +378,26 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
                     //self.pc = (self.pc as i32 + target) as u32;
                     self.branch_to = Some((self.pc as i32 + target + 4) as u32);
                 }
+                self.stats.add_cycles(1);
             }
             Instruction::BNE(args) => {
                 if self.regs[args.rs] != self.regs[args.rt] {
                     let target = branch_addr(args.imm);
                     self.branch_to = Some((self.pc as i32 + target + 4) as u32);
                 }
+                self.stats.add_cycles(1);
             }
             Instruction::BLEZ(args) => {
                 if as_signed(self.regs[args.rs]) <= 0 {
                     let target = branch_addr(args.imm);
                     self.branch_to = Some((self.pc as i32 + target + 4) as u32);
                 }
+                self.stats.add_cycles(1);
             }
             Instruction::J(addr) => {
                 let target = jump_addr(self.pc, addr);
                 self.branch_to = Some(target);
+                self.stats.add_cycles(1);
             }
             Instruction::SLT(args) => {
                 self.regs[args.rd] =
@@ -370,6 +406,7 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
                     } else {
                         0
                     };
+                self.stats.add_cycles(1);
             }
             Instruction::SLTU(args) => {
                 self.regs[args.rd] = if self.regs[args.rs] < self.regs[args.rt] {
@@ -377,34 +414,44 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
                 } else {
                     0
                 };
+                self.stats.add_cycles(1);
             }
             Instruction::JR(args) => {
                 self.branch_to = Some(self.regs[args.rs] + 4);
+                self.stats.add_cycles(1);
             }
             Instruction::JAL(addr) => {
                 self.regs[Register(31)] = self.pc + 4;
                 let target = jump_addr(self.pc, addr);
                 self.branch_to = Some(target);
+                self.stats.add_cycles(1);
             }
             Instruction::SLL(args) => {
                 self.regs[args.rd] = self.regs[args.rt] << args.shamt;
+                self.stats.add_cycles(1);
             }
             Instruction::SRL(args) => {
                 self.regs[args.rd] = self.regs[args.rt] >> args.shamt;
+                self.stats.add_cycles(1);
             }
             Instruction::ANDI(args) => {
                 self.regs[args.rt] = self.regs[args.rs] & args.imm;
+                self.stats.add_cycles(1);
             }
             Instruction::LW(args) => {
                 let addr = self.regs[args.rs] as i32 + sign_extend_cast(args.imm, 16);
-                self.regs[args.rt] = self.mem.peek(addr as u32)?;
+                let (val, cycles) = self.mem.peek(addr as u32)?;
+                self.regs[args.rt] = val;
+                self.stats.add_cycles(cycles);
             }
             Instruction::SW(args) => {
                 let addr = self.regs[args.rs] as i32 + sign_extend_cast(args.imm, 16);
-                self.mem.poke(addr as u32, self.regs[args.rt])?;
+                let cycles = self.mem.poke(addr as u32, self.regs[args.rt])?;
+                self.stats.add_cycles(cycles);
             }
             Instruction::OR(args) => {
                 self.regs[args.rd] = self.regs[args.rs] | self.regs[args.rt];
+                self.stats.add_cycles(1);
             }
             Instruction::SLTI(args) => {
                 self.regs[args.rt] =
@@ -413,6 +460,7 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
                     } else {
                         0
                     };
+                self.stats.add_cycles(1);
             }
             Instruction::JALR(args) => {
                 // Note to self:
@@ -420,6 +468,7 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
                 // por isso o + 4
                 self.regs[args.rd] = self.pc + 4;
                 self.branch_to = Some(self.regs[args.rs]);
+                self.stats.add_cycles(1);
             }
             Instruction::MULT(args) => {
                 let a = as_signed(self.regs[args.rs]) as i64;
@@ -431,40 +480,56 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
                 let hi = u32::from_le_bytes(bytes[4..8].try_into().unwrap());
 
                 self.arith_regs = (lo, hi);
+                self.stats.add_cycles(1);
             }
             Instruction::MFLO(args) => {
                 self.regs[args.rd] = self.arith_regs.0;
+                self.stats.add_cycles(1);
             }
             Instruction::MFHI(args) => {
                 self.regs[args.rd] = self.arith_regs.1;
+                self.stats.add_cycles(1);
             }
             Instruction::DIV(args) => {
                 let a = as_signed(self.regs[args.rs]);
                 let b = as_signed(self.regs[args.rt]);
 
                 self.arith_regs = (as_unsigned(a / b), as_unsigned(a % b));
+                self.stats.add_cycles(1);
             }
             Instruction::LB(args) => {
                 let addr = self.regs[args.rs] as i32 + sign_extend_cast(args.imm, 16);
-                self.regs[args.rt] = sign_extend(self.mem.peek(addr as u32)?, 8);
+                let (val, cycles) = self.mem.peek(addr as u32)?;
+                self.regs[args.rt] = sign_extend(val, 8);
+                self.stats.add_cycles(cycles);
             }
             Instruction::LWC1(args) => {
                 let addr = self.regs[args.rs] as i32 + sign_extend_cast(args.imm, 16);
-                self.float_regs[args.rt.into()] = self.mem.peek(addr as u32)?;
+                let (val, cycles) = self.mem.peek(addr as u32)?;
+                self.float_regs[args.rt.into()] = val;
+                self.stats.add_cycles(cycles);
             }
             Instruction::MFC1(args) => {
                 self.regs[args.ft.into()] = self.float_regs[args.fs];
+                self.stats.add_cycles(1);
             }
             Instruction::LDC1(args) => {
                 let addr = self.regs[args.rs] as i32 + sign_extend_cast(args.imm, 16);
 
                 let rt: FloatRegister = args.rt.into();
 
-                self.float_regs[rt] = self.mem.peek(addr as u32)?;
-                self.float_regs[rt + 1] = self.mem.peek(addr as u32 + 4)?;
+                let (val_lo, cycles_lo) = self.mem.peek(addr as u32)?;
+                let (val_hi, cycles_hi) = self.mem.peek(addr as u32 + 4)?;
+
+                self.float_regs[rt] = val_lo;
+                self.float_regs[rt + 1] = val_hi;
+
+                self.stats.add_cycles(cycles_lo);
+                self.stats.add_cycles(cycles_hi);
             }
             Instruction::MOV_S(args) => {
                 self.float_regs[args.fd] = self.float_regs[args.fs];
+                self.stats.add_cycles(1);
             }
             Instruction::ADD_S(args) => {
                 let x = word_to_single(self.float_regs[args.fs]);
@@ -473,6 +538,7 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
                 let val = x + y;
 
                 self.float_regs[args.fd] = single_to_word(val);
+                self.stats.add_cycles(1);
             }
             Instruction::SUB_S(args) => {
                 let x = word_to_single(self.float_regs[args.fs]);
@@ -481,6 +547,7 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
                 let val = x - y;
 
                 self.float_regs[args.fd] = single_to_word(val);
+                self.stats.add_cycles(1);
             }
             Instruction::MUL_S(args) => {
                 let x = word_to_single(self.float_regs[args.fs]);
@@ -489,6 +556,7 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
                 let val = x * y;
 
                 self.float_regs[args.fd] = single_to_word(val);
+                self.stats.add_cycles(1);
             }
             Instruction::DIV_S(args) => {
                 let x = word_to_single(self.float_regs[args.fs]);
@@ -497,10 +565,12 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
                 let val = x / y;
 
                 self.float_regs[args.fd] = single_to_word(val);
+                self.stats.add_cycles(1);
             }
             Instruction::MOV_D(args) => {
                 self.float_regs[args.fd] = self.float_regs[args.fs];
                 self.float_regs[args.fd + 1] = self.float_regs[args.fs + 1];
+                self.stats.add_cycles(1);
             }
             Instruction::ADD_D(args) => {
                 let x = dword_to_double(self.float_regs[args.fs], self.float_regs[args.fs + 1]);
@@ -510,6 +580,7 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
 
                 self.float_regs[args.fd] = lo;
                 self.float_regs[args.fd + 1] = hi;
+                self.stats.add_cycles(1);
             }
             Instruction::SUB_D(args) => {
                 let x = dword_to_double(self.float_regs[args.fs], self.float_regs[args.fs + 1]);
@@ -519,6 +590,7 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
 
                 self.float_regs[args.fd] = lo;
                 self.float_regs[args.fd + 1] = hi;
+                self.stats.add_cycles(1);
             }
             Instruction::MUL_D(args) => {
                 let x = dword_to_double(self.float_regs[args.fs], self.float_regs[args.fs + 1]);
@@ -528,6 +600,7 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
 
                 self.float_regs[args.fd] = lo;
                 self.float_regs[args.fd + 1] = hi;
+                self.stats.add_cycles(1);
             }
             Instruction::DIV_D(args) => {
                 let x = dword_to_double(self.float_regs[args.fs], self.float_regs[args.fs + 1]);
@@ -537,29 +610,36 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
 
                 self.float_regs[args.fd] = lo;
                 self.float_regs[args.fd + 1] = hi;
+                self.stats.add_cycles(1);
             }
             Instruction::MTC1(args) => {
                 self.float_regs[args.fs] = self.regs[args.ft.into()];
+                self.stats.add_cycles(1);
             }
             Instruction::CVT_D_W(args) => {
                 let val = self.float_regs[args.fs] as f64;
                 let (lo, hi) = double_to_dword(val);
                 self.float_regs[args.fd] = lo;
                 self.float_regs[args.fd + 1] = hi;
+                self.stats.add_cycles(1);
             }
             Instruction::XOR(args) => {
                 self.regs[args.rd] = self.regs[args.rs] ^ self.regs[args.rt];
+                self.stats.add_cycles(1);
             }
             Instruction::CVT_S_D(args) => {
                 let val = dword_to_double(self.float_regs[args.fs], self.float_regs[args.fs + 1]);
                 let val = val as f32;
                 self.float_regs[args.fd] = single_to_word(val);
+                self.stats.add_cycles(1);
             }
             Instruction::AND(args) => {
                 self.regs[args.rd] = self.regs[args.rs] & self.regs[args.rt];
+                self.stats.add_cycles(1);
             }
             Instruction::SUBU(args) => {
                 self.regs[args.rd] = self.regs[args.rs] - self.regs[args.rt];
+                self.stats.add_cycles(1);
             }
             Instruction::SRA(args) => {
                 let sign = (self.regs[args.rt] & (1 << 31)) >> 31;
@@ -570,11 +650,13 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
                 }
 
                 self.regs[args.rd] = val;
+                self.stats.add_cycles(1);
             }
             Instruction::BAL(args) => {
                 self.regs[Register(31)] = self.pc + 4;
                 let target = branch_addr(args.imm);
                 self.branch_to = Some((self.pc as i32 + target + 4) as u32);
+                self.stats.add_cycles(1);
             }
             Instruction::BGEZ(args) => {
                 // Pq a impl de BAL funciona aq, mas BGEZ nao???? lol
@@ -585,28 +667,34 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
                 self.regs[Register(31)] = self.pc + 4;
                 let target = branch_addr(args.imm);
                 self.branch_to = Some((self.pc as i32 + target + 4) as u32);
+                self.stats.add_cycles(1);
             }
             Instruction::SWC1(args) => {
                 let addr = self.regs[args.rs] as i32 + sign_extend_cast(args.imm, 16);
-                self.mem
+                let cycles = self
+                    .mem
                     .poke(addr as u32, self.float_regs[args.rt.into()])?;
+                self.stats.add_cycles(cycles);
             }
             Instruction::C_LT_S(args) => {
                 self.float_cc = word_to_single(self.float_regs[args.fs])
                     < word_to_single(self.float_regs[args.ft]);
                 //println!("{} < {}? {}", self.float_regs[args.fs], self.float_regs[args.ft], self.float_cc);
+                self.stats.add_cycles(1);
             }
             Instruction::BC1T(args) => {
                 if self.float_cc {
                     let target = branch_addr(args.imm);
                     self.branch_to = Some((self.pc as i32 + target + 4) as u32);
                 }
+                self.stats.add_cycles(1);
             }
             Instruction::BC1F(args) => {
                 if !self.float_cc {
                     let target = branch_addr(args.imm);
                     self.branch_to = Some((self.pc as i32 + target + 4) as u32);
                 }
+                self.stats.add_cycles(1);
             }
             a => return Err(eyre!("Instruction {} not implemented yet!", a)),
         }
@@ -635,6 +723,17 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
         }
 
         self.stats.print_stats()?;
+
+        println!();
+        println!("Memory Information");
+        println!("------------------");
+        println!("Level  Hits          Misses        Total          Miss Rate");
+        println!("-----  ------------  ------------  ------------   ---------");
+
+        if self.imem.get() as *const u32 != self.mem.get() as *const u32 {
+            self.imem.print_stats(false);
+        }
+        self.mem.print_stats(true);
 
         Ok(())
     }

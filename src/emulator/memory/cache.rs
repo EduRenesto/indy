@@ -1,5 +1,5 @@
 use super::reporter::MemoryEvent;
-use super::Memory;
+use super::{Memory, MemoryStats};
 
 use std::cell::UnsafeCell;
 use std::sync::mpsc::Sender;
@@ -140,18 +140,6 @@ pub struct Cache<'a, T: Memory, const L: usize, const N: usize, const A: usize> 
     reporter: Option<Sender<MemoryEvent>>,
 }
 
-impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Drop for Cache<'a, T, L, N, A> {
-    fn drop(&mut self) {
-        let hits = self.accesses - self.misses;
-        let hit_rate = (hits as f32) / (self.accesses as f32) * 100.0;
-        let miss_rate = (self.misses as f32) / (self.accesses as f32) * 100.0;
-        println!(
-            "Cache {}: {} accesses, {} ({:.2}%) hits, {} ({:.2}%) misses",
-            self.name, self.accesses, hits, hit_rate, self.misses, miss_rate
-        );
-    }
-}
-
 /// Implementações comuns a todas as configurações de cache.
 impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T, L, N, A> {
     /// Cria uma nova cache.
@@ -203,16 +191,25 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
         let n_sets = N / set_size;
         let n_sets_bits = log2_lut(n_sets);
 
-        debug!("cache {}: calculating tag for address {:#010x}", self.name, addr);
+        debug!(
+            "cache {}: calculating tag for address {:#010x}",
+            self.name, addr
+        );
         debug!("cache {}: |=> addr        = {:#034b}", self.name, addr);
         let line_number = addr as usize / (L * 4);
-        debug!("cache {}: |=> line_number = {:#034b}", self.name, line_number);
+        debug!(
+            "cache {}: |=> line_number = {:#034b}",
+            self.name, line_number
+        );
         let set_idx = line_number & ((n_sets).next_power_of_two() - 1); // Isso só funciona com potências de 2!!!!!
         debug!("cache {}: |=> set_idx     = {:#034b}", self.name, set_idx);
         let tag = line_number >> n_sets_bits;
         debug!("cache {}: |=> tag         = {:#034b}", self.name, tag);
 
-        debug!("cache {}: addr {:#010x} => line {:#010x}, tag {:#010x}", self.name, addr, line_number, tag);
+        debug!(
+            "cache {}: addr {:#010x} => line {:#010x}, tag {:#010x}",
+            self.name, addr, line_number, tag
+        );
 
         for i in 0..set_size {
             let line_idx = set_idx * set_size + i;
@@ -220,7 +217,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                 Some(ref line) if line.tag == tag => {
                     let offset = (addr as usize / 4) % L;
                     debug!("cache {}: found at way {}", self.name, line_idx);
-                    return FindLine::Hit(LineIndex { 
+                    return FindLine::Hit(LineIndex {
                         line_number,
                         set_idx,
                         offset,
@@ -246,12 +243,12 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                 debug!("cache {}: randomly replacing way {}", self.name, line_idx);
 
                 let offset = (addr as usize / 4) % L;
-                FindLine::Miss(LineIndex { 
-                        line_number,
-                        set_idx,
-                        offset,
-                        line_idx,
-                        tag,
+                FindLine::Miss(LineIndex {
+                    line_number,
+                    set_idx,
+                    offset,
+                    line_idx,
+                    tag,
                 })
             }
             RepPolicy::LeastRecentlyUsed => {
@@ -262,7 +259,8 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
 
     /// Se a flag `dirty` da linha ser verdadeira, então
     /// escreve o conteúdo no próximo nível. Senão, não faz nada.
-    fn flush_line(&mut self, idx: &LineIndex) -> Result<()> {
+    /// Retorna o total de ciclos gastos.
+    fn flush_line(&mut self, idx: &LineIndex) -> Result<usize> {
         match &self.lines[idx.line_idx] {
             Some(ref line) if line.dirty => {
                 let set_size = A;
@@ -276,28 +274,43 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                     "cache {}: flushing line {:#010x} ({}) to {:#010x}",
                     self.name, idx.line_number, idx.line_idx, base
                 );
-                unsafe {
+                let cycles = unsafe {
+                    let mut total_cycles = 0;
                     //let addr = idx.to_addr::<L>();
                     for i in 0..L {
-                        let a = base + 4*i as u32;
-                        debug!("cache {}: next[{:#010x}] <- {:#010x}[{}]",
-                        self.name, a, idx.line_number, i);
-                        (&mut *self.next.get()).poke(a, line.data[i])?;
-                    }
-                }
+                        let a = base + 4 * i as u32;
+                        debug!(
+                            "cache {}: next[{:#010x}] <- {:#010x}[{}]",
+                            self.name, a, idx.line_number, i
+                        );
+                        let cycles = (&mut *self.next.get()).poke(a, line.data[i])?;
 
-                Ok(())
+                        if cycles > total_cycles {
+                            total_cycles = cycles;
+                        }
+                    }
+
+                    total_cycles
+                };
+
+                Ok(cycles)
             }
             _ => {
-                debug!("cache {}: no need to write back line {:#010x}", self.name, idx.line_number);
-                Ok(())
-            },
+                debug!(
+                    "cache {}: no need to write back line {:#010x}",
+                    self.name, idx.line_number
+                );
+                Ok(0)
+            }
         }
     }
 
     /// Pega uma linha do próximo nível e o coloca na linha
     /// da cache. Ignora o conteúdo anterior da linha: tome cuidado!
-    fn load_into_line(&mut self, idx: &LineIndex, base: u32) -> Result<()> {
+    /// Retorna o total de ciclos gasto.
+    fn load_into_line(&mut self, idx: &LineIndex, base: u32) -> Result<usize> {
+        let mut total_cycles = 0;
+
         debug!(
             "cache {}: loading {:#010x} to line {:#010x} ({})",
             self.name, base, idx.line_number, idx.line_idx,
@@ -309,10 +322,15 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
             unsafe {
                 for i in 0..L {
                     let a = base + 4 * i as u32;
-                    let d = (&mut *self.next.get()).peek(a)?;
-                    debug!("cache {}: {:#010x}[{}] <- next[{:#010x}] ({:#010x})",
-                           self.name, idx.line_number, i, a, d);
+                    let (d, cycles) = (&mut *self.next.get()).peek(a)?;
+                    debug!(
+                        "cache {}: {:#010x}[{}] <- next[{:#010x}] ({:#010x})",
+                        self.name, idx.line_number, i, a, d
+                    );
                     line.data[i] = d;
+                    if cycles > total_cycles {
+                        total_cycles = cycles;
+                    }
                 }
             }
             line.dirty = false;
@@ -322,10 +340,15 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
             unsafe {
                 for i in 0..L {
                     let a = base + 4 * i as u32;
-                    let d = (&mut *self.next.get()).peek(a)?;
-                    debug!("cache {}: {:#010x}[{}] <- next[{:#010x}] ({:#010x})",
-                           self.name, idx.line_number, i, a, d);
+                    let (d, cycles) = (&mut *self.next.get()).peek(a)?;
+                    debug!(
+                        "cache {}: {:#010x}[{}] <- next[{:#010x}] ({:#010x})",
+                        self.name, idx.line_number, i, a, d
+                    );
                     data[i] = d;
+                    if cycles > total_cycles {
+                        total_cycles = cycles;
+                    }
                 }
             }
 
@@ -336,11 +359,11 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
             });
         }
 
-        Ok(())
+        Ok(total_cycles)
     }
 
     /// Lógica compartilhada
-    fn do_peek(&mut self, addr: u32) -> Result<(LineIndex, u32)> {
+    fn do_peek(&mut self, addr: u32) -> Result<(LineIndex, u32, usize)> {
         self.accesses += 1;
 
         let offset = (addr / 4) as usize % L;
@@ -354,7 +377,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                 );
 
                 let line = self.lines[idx.line_idx].unwrap();
-                Ok((idx, line.data[idx.offset]))
+                Ok((idx, line.data[idx.offset], self.latency))
             }
             FindLine::Miss(idx) => {
                 self.misses += 1;
@@ -363,13 +386,15 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                     self.name, addr, idx.line_number, idx.line_idx, idx.offset
                 );
 
+                let mut cycles = 0;
+
                 // Faz o flush da linha antiga
-                self.flush_line(&idx)?;
-                self.load_into_line(&idx, base)?;
+                cycles += self.flush_line(&idx)?;
+                cycles += self.load_into_line(&idx, base)?;
 
                 let line = self.lines[idx.line_idx].unwrap();
 
-                Ok((idx, line.data[idx.offset]))
+                Ok((idx, line.data[idx.offset], cycles + self.latency))
             }
         }
     }
@@ -378,27 +403,27 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
 impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
     for Cache<'a, T, L, N, A>
 {
-    fn peek(&mut self, addr: u32) -> Result<u32> {
-        let (line_idx, data) = self.do_peek(addr)?;
+    fn peek(&mut self, addr: u32) -> Result<(u32, usize)> {
+        let (line_idx, data, cycles) = self.do_peek(addr)?;
 
         if let Some(ref tx) = self.reporter {
             tx.send(MemoryEvent::DataRead(addr, line_idx.line_number))?;
         }
 
-        Ok(data)
+        Ok((data, cycles))
     }
 
-    fn peek_instruction(&mut self, addr: u32) -> Result<u32> {
-        let (line_idx, data) = self.do_peek(addr)?;
+    fn peek_instruction(&mut self, addr: u32) -> Result<(u32, usize)> {
+        let (line_idx, data, cycles) = self.do_peek(addr)?;
 
         if let Some(ref tx) = self.reporter {
             tx.send(MemoryEvent::InstrRead(addr, line_idx.line_number))?;
         }
 
-        Ok(data)
+        Ok((data, cycles))
     }
 
-    fn poke(&mut self, addr: u32, val: u32) -> Result<()> {
+    fn poke(&mut self, addr: u32, val: u32) -> Result<usize> {
         self.accesses += 1;
 
         match self.find_line(addr) {
@@ -412,11 +437,16 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
                 line.data[idx.offset] = val;
                 line.dirty = true;
 
-                debug!("cache {}: line {:#010x} ({}) marked dirty", self.name, idx.line_number, idx.line_idx);
+                debug!(
+                    "cache {}: line {:#010x} ({}) marked dirty",
+                    self.name, idx.line_number, idx.line_idx
+                );
 
                 if let Some(ref tx) = self.reporter {
                     tx.send(MemoryEvent::Write(addr, idx.line_number))?;
                 }
+
+                Ok(self.latency)
             }
             FindLine::Miss(idx) => {
                 self.misses += 1;
@@ -428,9 +458,11 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
                 let offset = (addr / 4) as usize % L;
                 let base = addr - (4 * offset as u32);
 
+                let mut cycles = 0;
+
                 // Faz o flush da linha antiga
-                self.flush_line(&idx)?;
-                self.load_into_line(&idx, base)?;
+                cycles += self.flush_line(&idx)?;
+                cycles += self.load_into_line(&idx, base)?;
 
                 let mut line = self.lines[idx.line_idx].as_mut().unwrap();
                 line.data[idx.offset] = val;
@@ -439,10 +471,10 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
                 if let Some(ref tx) = self.reporter {
                     tx.send(MemoryEvent::Write(addr, idx.line_number))?;
                 }
+
+                Ok(cycles + self.latency)
             }
         }
-
-        Ok(())
     }
 
     fn dump(&self) -> Result<()> {
@@ -455,5 +487,19 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
         println!("============================");
 
         Ok(())
+    }
+
+    fn print_stats(&self, recurse: bool) {
+        let hits = self.accesses - self.misses;
+        let miss_rate = (hits as f32) / (self.accesses as f32);
+
+        println!(
+            "{:>5}  {:>12}  {:>12}  {:>12}   {:>8.2}%",
+            self.name, hits, self.misses, self.accesses, miss_rate,
+        );
+
+        if recurse {
+            self.next.print_stats(true);
+        }
     }
 }
