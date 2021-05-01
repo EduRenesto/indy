@@ -617,7 +617,7 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
                 self.stats.add_cycles(1);
             }
             Instruction::CVT_D_W(args) => {
-                let val = self.float_regs[args.fs] as f64;
+                let val = as_signed(self.float_regs[args.fs]) as f64;
                 let (lo, hi) = double_to_dword(val);
                 self.float_regs[args.fd] = lo;
                 self.float_regs[args.fd + 1] = hi;
@@ -664,9 +664,15 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
                 //    let target = branch_addr(args.imm);
                 //    self.branch_to = Some((self.pc as i32 + target + 4) as u32);
                 //}
-                self.regs[Register(31)] = self.pc + 4;
-                let target = branch_addr(args.imm);
-                self.branch_to = Some((self.pc as i32 + target + 4) as u32);
+
+                if (self.regs[args.rs] & (1 << 31)) == 0 {
+                    let target = branch_addr(args.imm);
+                    self.branch_to = Some((self.pc as i32 + target + 4) as u32);
+                }
+
+                //self.regs[Register(31)] = self.pc + 4;
+                //let target = branch_addr(args.imm);
+                //self.branch_to = Some((self.pc as i32 + target + 4) as u32);
                 self.stats.add_cycles(1);
             }
             Instruction::SWC1(args) => {
