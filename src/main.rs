@@ -197,6 +197,21 @@ fn main() -> Result<()> {
                 let mut cpu = Cpu::new(&l1d, &l1i, entry, 0x7FFFEFFC, 0x10008000);
                 cpu.run()?;
             }
+            "5" => {
+                let ram = UnsafeCell::new(ram);
+                let l1d: UnsafeCell<Cache<_, 8, 16, 4>> =
+                    UnsafeCell::new(Cache::new("L1d", &ram, RepPolicy::LeastRecentlyUsed, 1, None));
+                let l1i: UnsafeCell<Cache<_, 8, 16, 4>> =
+                    UnsafeCell::new(Cache::new("L1i", &ram, RepPolicy::LeastRecentlyUsed, 1, None));
+
+                unsafe {
+                    (&mut *l1d.get()).set_sister(&l1i, false);
+                    (&mut *l1i.get()).set_sister(&l1d, true);
+                }
+
+                let mut cpu = Cpu::new(&l1d, &l1i, entry, 0x7FFFEFFC, 0x10008000);
+                cpu.run()?;
+            }
             c => return Err(eyre!("Configuração de memória {} não conhecida!", c)),
         };
 
@@ -242,6 +257,51 @@ fn main() -> Result<()> {
                     Some(tx.clone()),
                 ));
                 let mut cpu = Cpu::new(&cache, &cache, entry, 0x7FFFEFFC, 0x10008000);
+                cpu.run()?;
+            }
+            "3" => {
+                let ram = UnsafeCell::new(ram);
+                let l1d: UnsafeCell<Cache<_, 8, 16, 1>> =
+                    UnsafeCell::new(Cache::new("L1d", &ram, RepPolicy::Random, 1, Some(tx.clone())));
+                let l1i: UnsafeCell<Cache<_, 8, 16, 1>> =
+                    UnsafeCell::new(Cache::new("L1i", &ram, RepPolicy::Random, 1, Some(tx.clone())));
+
+                unsafe {
+                    (&mut *l1d.get()).set_sister(&l1i, false);
+                    (&mut *l1i.get()).set_sister(&l1d, true);
+                }
+
+                let mut cpu = Cpu::new(&l1d, &l1i, entry, 0x7FFFEFFC, 0x10008000);
+                cpu.run()?;
+            }
+            "4" => {
+                let ram = UnsafeCell::new(ram);
+                let l1d: UnsafeCell<Cache<_, 8, 16, 1>> =
+                    UnsafeCell::new(Cache::new("L1d", &ram, RepPolicy::LeastRecentlyUsed, 1, Some(tx.clone())));
+                let l1i: UnsafeCell<Cache<_, 8, 16, 1>> =
+                    UnsafeCell::new(Cache::new("L1i", &ram, RepPolicy::LeastRecentlyUsed, 1, Some(tx.clone())));
+
+                unsafe {
+                    (&mut *l1d.get()).set_sister(&l1i, false);
+                    (&mut *l1i.get()).set_sister(&l1d, true);
+                }
+
+                let mut cpu = Cpu::new(&l1d, &l1i, entry, 0x7FFFEFFC, 0x10008000);
+                cpu.run()?;
+            }
+            "5" => {
+                let ram = UnsafeCell::new(ram);
+                let l1d: UnsafeCell<Cache<_, 8, 16, 4>> =
+                    UnsafeCell::new(Cache::new("L1d", &ram, RepPolicy::LeastRecentlyUsed, 1, Some(tx.clone())));
+                let l1i: UnsafeCell<Cache<_, 8, 16, 4>> =
+                    UnsafeCell::new(Cache::new("L1i", &ram, RepPolicy::LeastRecentlyUsed, 1, Some(tx.clone())));
+
+                unsafe {
+                    (&mut *l1d.get()).set_sister(&l1i, false);
+                    (&mut *l1i.get()).set_sister(&l1d, true);
+                }
+
+                let mut cpu = Cpu::new(&l1d, &l1i, entry, 0x7FFFEFFC, 0x10008000);
                 cpu.run()?;
             }
             c => return Err(eyre!("Configuração de memória {} não conhecida!", c)),
