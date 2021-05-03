@@ -143,6 +143,8 @@ pub struct Cache<'a, T: Memory, const L: usize, const N: usize, const A: usize> 
     reporter: Option<Sender<MemoryEvent>>,
     /// A cache irmã, se existente.
     sister: Option<&'a UnsafeCell<Cache<'a, T, L, N, A>>>,
+    /// `true` se a cache deve procurar na irmã antes de ir ao próximo nível.
+    fetch_from_sister: bool,
 }
 
 /// Implementações comuns a todas as configurações de cache.
@@ -174,12 +176,14 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
             rng: thread_rng(),
             reporter,
             sister: None,
+            fetch_from_sister: false,
         }
     }
 
     /// Define `sister` como a cache irmã.
-    pub fn set_sister(&mut self, sister: &'a UnsafeCell<Cache<'a, T, L, N, A>>) {
+    pub fn set_sister(&mut self, sister: &'a UnsafeCell<Cache<'a, T, L, N, A>>, fetch: bool) {
         self.sister.replace(sister);
+        self.fetch_from_sister = fetch;
     }
 
     /// Calcula só a tag de um endereço.
@@ -202,20 +206,20 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
         let n_sets = N / set_size;
         let n_sets_bits = log2_lut(n_sets);
 
-        debug!(
-            "cache {}: calculating tag for address {:#010x}",
-            self.name, addr
-        );
-        debug!("cache {}: |=> addr        = {:#034b}", self.name, addr);
+        //debug!(
+        //    "cache {}: calculating tag for address {:#010x}",
+        //    self.name, addr
+        //);
+        //debug!("cache {}: |=> addr        = {:#034b}", self.name, addr);
         let line_number = addr as usize / (L * 4);
-        debug!(
-            "cache {}: |=> line_number = {:#034b}",
-            self.name, line_number
-        );
+        //debug!(
+        //    "cache {}: |=> line_number = {:#034b}",
+        //    self.name, line_number
+        //);
         let set_idx = line_number & ((n_sets).next_power_of_two() - 1); // Isso só funciona com potências de 2!!!!!
-        debug!("cache {}: |=> set_idx     = {:#034b}", self.name, set_idx);
+        //debug!("cache {}: |=> set_idx     = {:#034b}", self.name, set_idx);
         let tag = line_number >> n_sets_bits;
-        debug!("cache {}: |=> tag         = {:#034b}", self.name, tag);
+        //debug!("cache {}: |=> tag         = {:#034b}", self.name, tag);
 
         debug!(
             "cache {}: addr {:#010x} => line {:#010x}, tag {:#010x}",
@@ -285,6 +289,13 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                     "cache {}: flushing line {:#010x} ({}) to {:#010x}",
                     self.name, idx.line_number, idx.line_idx, base
                 );
+
+                if let Some(sister) = self.sister {
+                    unsafe {
+                        (&mut *sister.get()).invalidate_line(idx.to_addr::<L>()); // TODO usar line_number
+                    }
+                }
+
                 let cycles = unsafe {
                     let mut total_cycles = 0;
                     //let addr = idx.to_addr::<L>();
@@ -475,14 +486,15 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
     /// Invalida a linha da cache que contém esse endereço.
     fn invalidate_line(&mut self, addr: u32) {
         if let FindLine::Hit(idx) = self.find_line(addr) {
-            self.lines[idx.line_idx].unwrap().valid = false;
+            debug!("cache {}: invalidating line {:#010x}", self.name, idx.line_number);
+            self.lines[idx.line_idx].as_mut().unwrap().valid = false;
         }
     }
 
     /// Tenta copiar uma linha da cache irmã, se existente.
     /// Retorna `true` se foi possível.
     fn try_copy_from_sister(&mut self, idx: &LineIndex) -> bool {
-        if self.sister.is_none() {
+        if self.sister.is_none() || !self.fetch_from_sister {
             return false;
         }
 
