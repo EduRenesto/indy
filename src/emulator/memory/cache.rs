@@ -67,6 +67,8 @@ struct Line<const L: usize> {
     /// Verdadeiro se o conteúdo da linha atual é consistente com o resto
     /// da hierarquia de memória.
     valid: bool,
+    /// O "número" do último acesso a esta linha.
+    last_access: usize,
     /// Os dados da linha.
     data: [u32; L],
 }
@@ -267,7 +269,28 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                 })
             }
             RepPolicy::LeastRecentlyUsed => {
-                todo!()
+                let idx = (0..set_size)
+                    .into_iter()
+                    .map(|i| {
+                        let line_idx = set_idx * set_size + i;
+
+                        match self.lines[line_idx] {
+                            Some(ref line) => (line_idx, line.last_access),
+                            None => (line_idx, 0)
+                        }
+                    })
+                    .min()
+                    .unwrap()
+                    .0;
+
+                let offset = (addr as usize / 4) % L;
+                FindLine::Miss(LineIndex {
+                    line_number,
+                    set_idx,
+                    offset,
+                    line_idx: idx,
+                    tag,
+                })
             }
         }
     }
@@ -380,6 +403,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                 dirty: false,
                 data,
                 valid: true,
+                last_access: self.accesses,
             });
         }
 
@@ -401,7 +425,8 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                     self.name, addr, idx.line_number, idx.line_idx, idx.offset
                 );
 
-                let line = self.lines[idx.line_idx].unwrap();
+                let line = self.lines[idx.line_idx].as_mut().unwrap();
+                line.last_access = self.accesses;
                 Ok((idx, line.data[idx.offset], self.latency))
             }
             FindLine::Hit(idx) => {
@@ -422,7 +447,8 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                 if self.try_copy_from_sister(&idx) {
                     debug!("cache {}: line {:#010x} found in sister, copying...", self.name,
                            idx.line_number);
-                    let line = self.lines[idx.line_idx].unwrap();
+                    let mut line = self.lines[idx.line_idx].as_mut().unwrap();
+                    line.last_access = self.accesses;
                     Ok((idx, line.data[idx.offset], self.latency))
                 } else {
                     debug!(
@@ -436,7 +462,8 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                     cycles += self.flush_line(&idx)?;
                     cycles += self.load_into_line(&idx, base)?;
 
-                    let line = self.lines[idx.line_idx].unwrap();
+                    let mut line = self.lines[idx.line_idx].as_mut().unwrap();
+                    line.last_access = self.accesses;
 
                     Ok((idx, line.data[idx.offset], cycles + self.latency))
                 }
@@ -451,7 +478,8 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                 if self.try_copy_from_sister(&idx) {
                     debug!("cache {}: line {:#010x} found in sister, copying...", self.name,
                            idx.line_number);
-                    let line = self.lines[idx.line_idx].unwrap();
+                    let mut line = self.lines[idx.line_idx].as_mut().unwrap();
+                    line.last_access = self.accesses;
                     Ok((idx, line.data[idx.offset], self.latency))
                 } else {
                     debug!(
@@ -465,7 +493,8 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                     cycles += self.flush_line(&idx)?;
                     cycles += self.load_into_line(&idx, base)?;
 
-                    let line = self.lines[idx.line_idx].unwrap();
+                    let mut line = self.lines[idx.line_idx].as_mut().unwrap();
+                    line.last_access = self.accesses;
 
                     Ok((idx, line.data[idx.offset], cycles + self.latency))
                 }
@@ -561,6 +590,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
                 let mut line = self.lines[idx.line_idx].as_mut().unwrap();
                 line.data[idx.offset] = val;
                 line.dirty = true;
+                line.last_access = self.accesses;
 
                 debug!(
                     "cache {}: line {:#010x} ({}) marked dirty",
@@ -592,6 +622,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
                 let mut line = self.lines[idx.line_idx].as_mut().unwrap();
                 line.data[idx.offset] = val;
                 line.dirty = true;
+                line.last_access = self.accesses;
 
                 if let Some(ref tx) = self.reporter {
                     tx.send(MemoryEvent::Write(addr, idx.line_number))?;
