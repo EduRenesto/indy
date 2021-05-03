@@ -173,6 +173,12 @@ fn main() -> Result<()> {
                     UnsafeCell::new(Cache::new("L1d", &ram, RepPolicy::Random, 1, None));
                 let l1i: UnsafeCell<Cache<_, 8, 16, 1>> =
                     UnsafeCell::new(Cache::new("L1i", &ram, RepPolicy::Random, 1, None));
+
+                unsafe {
+                    (&mut *l1d.get()).set_sister(&l1i);
+                    (&mut *l1i.get()).set_sister(&l1d);
+                }
+
                 let mut cpu = Cpu::new(&l1d, &l1i, entry, 0x7FFFEFFC, 0x10008000);
                 cpu.run()?;
             }

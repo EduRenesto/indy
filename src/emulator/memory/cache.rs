@@ -64,6 +64,9 @@ struct Line<const L: usize> {
     /// Verdadeiro se o conteúdo da linha atual pode não ser o mesmo
     /// que no próximo nível.
     dirty: bool,
+    /// Verdadeiro se o conteúdo da linha atual é consistente com o resto
+    /// da hierarquia de memória.
+    valid: bool,
     /// Os dados da linha.
     data: [u32; L],
 }
@@ -138,6 +141,8 @@ pub struct Cache<'a, T: Memory, const L: usize, const N: usize, const A: usize> 
     rng: ThreadRng,
     /// O write-end de um Memory Reporter.
     reporter: Option<Sender<MemoryEvent>>,
+    /// A cache irmã, se existente.
+    sister: Option<&'a UnsafeCell<Cache<'a, T, L, N, A>>>,
 }
 
 /// Implementações comuns a todas as configurações de cache.
@@ -168,7 +173,13 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
             misses: 0,
             rng: thread_rng(),
             reporter,
+            sister: None,
         }
+    }
+
+    /// Define `sister` como a cache irmã.
+    pub fn set_sister(&mut self, sister: &'a UnsafeCell<Cache<'a, T, L, N, A>>) {
+        self.sister.replace(sister);
     }
 
     /// Calcula só a tag de um endereço.
@@ -335,6 +346,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
             }
             line.dirty = false;
             line.tag = idx.tag;
+            line.valid = true;
         } else {
             let mut data = [0; L];
             unsafe {
@@ -356,6 +368,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                 tag: idx.tag,
                 dirty: false,
                 data,
+                valid: true,
             });
         }
 
@@ -370,7 +383,8 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
         let base = addr - (4 * offset as u32);
 
         match self.find_line(addr) {
-            FindLine::Hit(idx) => {
+            FindLine::Hit(idx) if self.lines[idx.line_idx].unwrap().valid => {
+                // Hit válido
                 debug!(
                     "cache {}: read access {:#010x} hit at line {:#010x} ({}) offset {:x}",
                     self.name, addr, idx.line_number, idx.line_idx, idx.offset
@@ -379,6 +393,43 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                 let line = self.lines[idx.line_idx].unwrap();
                 Ok((idx, line.data[idx.offset], self.latency))
             }
+            FindLine::Hit(idx) => {
+                // Hit inválido
+                // i.e. registra miss e tenta pegar da irmã.
+                // se não rolar na irmã, aí é miss de verdade.
+                // DISCLAIMER: aqui não é preciso checar se tá dirty ou não
+                // antes de fazer o load.
+                // Só as caches de instruções vão cair nesse ramo, e não há escrita a partir
+                // delas. Então, os bits de dirty sempre vão ser false.
+
+                self.misses += 1;
+                debug!(
+                    "cache {}: read access {:#010x} invalid hit at line {:#010x} ({}) offset {:x}",
+                    self.name, addr, idx.line_number, idx.line_idx, idx.offset
+                );
+
+                if self.try_copy_from_sister(&idx) {
+                    debug!("cache {}: line {:#010x} found in sister, copying...", self.name,
+                           idx.line_number);
+                    let line = self.lines[idx.line_idx].unwrap();
+                    Ok((idx, line.data[idx.offset], self.latency))
+                } else {
+                    debug!(
+                        "cache {}: line {:#010x} not found in sister, querying next level...",
+                        self.name, idx.line_number,
+                    );
+
+                    let mut cycles = 0;
+
+                    // Faz o flush da linha antiga
+                    cycles += self.flush_line(&idx)?;
+                    cycles += self.load_into_line(&idx, base)?;
+
+                    let line = self.lines[idx.line_idx].unwrap();
+
+                    Ok((idx, line.data[idx.offset], cycles + self.latency))
+                }
+            }
             FindLine::Miss(idx) => {
                 self.misses += 1;
                 debug!(
@@ -386,17 +437,72 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                     self.name, addr, idx.line_number, idx.line_idx, idx.offset
                 );
 
-                let mut cycles = 0;
+                if self.try_copy_from_sister(&idx) {
+                    debug!("cache {}: line {:#010x} found in sister, copying...", self.name,
+                           idx.line_number);
+                    let line = self.lines[idx.line_idx].unwrap();
+                    Ok((idx, line.data[idx.offset], self.latency))
+                } else {
+                    debug!(
+                        "cache {}: line {:#010x} not found in sister, querying next level...",
+                        self.name, idx.line_number,
+                    );
 
-                // Faz o flush da linha antiga
-                cycles += self.flush_line(&idx)?;
-                cycles += self.load_into_line(&idx, base)?;
+                    let mut cycles = 0;
 
-                let line = self.lines[idx.line_idx].unwrap();
+                    // Faz o flush da linha antiga
+                    cycles += self.flush_line(&idx)?;
+                    cycles += self.load_into_line(&idx, base)?;
 
-                Ok((idx, line.data[idx.offset], cycles + self.latency))
+                    let line = self.lines[idx.line_idx].unwrap();
+
+                    Ok((idx, line.data[idx.offset], cycles + self.latency))
+                }
+
+                //let mut cycles = 0;
+
+                //// Faz o flush da linha antiga
+                //cycles += self.flush_line(&idx)?;
+                //cycles += self.load_into_line(&idx, base)?;
+
+                //let line = self.lines[idx.line_idx].unwrap();
+
+                //Ok((idx, line.data[idx.offset], cycles + self.latency))
             }
         }
+    }
+
+    /// Invalida a linha da cache que contém esse endereço.
+    fn invalidate_line(&mut self, addr: u32) {
+        if let FindLine::Hit(idx) = self.find_line(addr) {
+            self.lines[idx.line_idx].unwrap().valid = false;
+        }
+    }
+
+    /// Tenta copiar uma linha da cache irmã, se existente.
+    /// Retorna `true` se foi possível.
+    fn try_copy_from_sister(&mut self, idx: &LineIndex) -> bool {
+        if self.sister.is_none() {
+            return false;
+        }
+
+        let sister = unsafe {
+            &*self.sister.unwrap().get()
+        };
+
+        for i in 0..A {
+            let line_idx = idx.set_idx * A + i;
+            match &sister.lines[line_idx] {
+                Some(ref line) if line.tag == idx.tag => {
+                    // Achou na irmã!
+                    self.lines[idx.line_idx].replace(*line);
+                    return true;
+                }
+                _ => continue,
+            }
+        }
+
+        false
     }
 }
 
@@ -425,6 +531,13 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
 
     fn poke(&mut self, addr: u32, val: u32) -> Result<usize> {
         self.accesses += 1;
+
+        if let Some(sister) = self.sister {
+            unsafe {
+                // Se a irmã tem esse endereço em uma linha, então a invalide.
+                (&mut *sister.get()).invalidate_line(addr);
+            }
+        }
 
         match self.find_line(addr) {
             FindLine::Hit(idx) => {
