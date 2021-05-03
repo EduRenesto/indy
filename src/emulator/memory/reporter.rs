@@ -15,7 +15,7 @@ use std::sync::mpsc;
 use std::thread;
 
 /// As mensagens que o Memory Reporter pode receber.
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub enum MemoryEvent {
     /// Uma leitura de dados. O primeiro elemento é o endereço, o segundo é a linha.
     DataRead(u32, usize),
@@ -23,6 +23,8 @@ pub enum MemoryEvent {
     InstrRead(u32, usize),
     /// Uma escrita. O primeiro elemento é o endereço, o segundo é a linha.
     Write(u32, usize),
+    /// Texto comum, que só será impresso quando o modo `debug` estiver habilitado.
+    Debug(String),
     /// Finaliza o Reporter.
     Finish,
 }
@@ -38,7 +40,7 @@ pub struct MemoryReporter;
 impl MemoryReporter {
     /// Cria um novo `MemoryReporter`, iniciando a thread e retornando o join handle
     /// da mesma, e o write end do channel.
-    pub fn new(file: File) -> (thread::JoinHandle<()>, mpsc::Sender<MemoryEvent>) {
+    pub fn new(file: File, debug: bool) -> (thread::JoinHandle<()>, mpsc::Sender<MemoryEvent>) {
         let (tx, rx) = mpsc::channel();
 
         let handle = thread::spawn(move || {
@@ -53,6 +55,11 @@ impl MemoryReporter {
                     }
                     MemoryEvent::Write(addr, line) => {
                         writeln!(file, "W {:#010x} (line# {:#010x})", addr, line).unwrap();
+                    }
+                    MemoryEvent::Debug(text) => {
+                        if debug {
+                            writeln!(file, "{}", text).unwrap();
+                        }
                     }
                     MemoryEvent::Finish => {
                         file.flush().unwrap();

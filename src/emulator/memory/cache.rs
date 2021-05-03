@@ -234,6 +234,8 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                 Some(ref line) if line.tag == tag => {
                     let offset = (addr as usize / 4) % L;
                     debug!("cache {}: found at way {}", self.name, line_idx);
+                    self.print_to_debug(format!("{}: {:#010x} tag matched at line {:#010x} way {}", 
+                                        self.name, addr, line_number, i));
                     return FindLine::Hit(LineIndex {
                         line_number,
                         set_idx,
@@ -246,6 +248,8 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
             }
         }
 
+        self.print_to_debug(format!("{}: miss", self.name));
+
         //if A == 1 {
         //    let line_idx = (base / 4) as usize % N;
         //    return FindLine::Miss(line_idx, offset);
@@ -255,9 +259,12 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
             RepPolicy::Random => {
                 // TODO da pra tirar umas coisas daq
                 let dist = Uniform::new(0, set_size);
-                let line_idx = set_idx * set_size + dist.sample(&mut self.rng);
+                let way = dist.sample(&mut self.rng);
+                let line_idx = set_idx * set_size + way;
 
                 debug!("cache {}: randomly replacing way {}", self.name, line_idx);
+
+                self.print_to_debug(format!("\trandomly choosing way {}", way));
 
                 let offset = (addr as usize / 4) % L;
                 FindLine::Miss(LineIndex {
@@ -269,19 +276,30 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                 })
             }
             RepPolicy::LeastRecentlyUsed => {
-                let idx = (0..set_size)
+                let (_, idx, way) = (0..set_size)
                     .into_iter()
                     .map(|i| {
                         let line_idx = set_idx * set_size + i;
 
                         match self.lines[line_idx] {
-                            Some(ref line) => (line_idx, line.last_access),
-                            None => (line_idx, 0)
+                            Some(ref line) => { 
+                                debug!("cache {}: age of line {:#010x} way {}: {}",
+                                       self.name, line_number, i, line.last_access);
+                                (line.last_access, line_idx, i)
+                            },
+                            None => { 
+                                debug!("cache {}: age of line {:#010x} way {}: 0",
+                                       self.name, line_number, i);
+                                (0, line_idx, i) 
+                            },
                         }
                     })
                     .min()
-                    .unwrap()
-                    .0;
+                    .unwrap();
+
+                debug!("cache {}: LRU choose way {}", self.name, way);
+
+                self.print_to_debug(format!("\tLRU-choosing way {}", way));
 
                 let offset = (addr as usize / 4) % L;
                 FindLine::Miss(LineIndex {
@@ -312,6 +330,8 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                     "cache {}: flushing line {:#010x} ({}) to {:#010x}",
                     self.name, idx.line_number, idx.line_idx, base
                 );
+
+                self.print_to_debug(format!("\tflushing line {:#010x}", idx.line_number));
 
                 if let Some(sister) = self.sister {
                     unsafe {
@@ -345,6 +365,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                     "cache {}: no need to write back line {:#010x}",
                     self.name, idx.line_number
                 );
+                self.print_to_debug(format!("\tno need to write back line {:#010x}", idx.line_number));
                 Ok(0)
             }
         }
@@ -360,6 +381,8 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
             "cache {}: loading {:#010x} to line {:#010x} ({})",
             self.name, base, idx.line_number, idx.line_idx,
         );
+
+        self.print_to_debug(format!("\tloading line {:#010x} from {:#010x}", idx.line_number, base));
 
         //let tag = self.calc_tag(base);
 
@@ -420,6 +443,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
         match self.find_line(addr) {
             FindLine::Hit(idx) if self.lines[idx.line_idx].unwrap().valid => {
                 // Hit válido
+                self.print_to_debug("\tline is valid: hit!".to_string());
                 debug!(
                     "cache {}: read access {:#010x} hit at line {:#010x} ({}) offset {:x}",
                     self.name, addr, idx.line_number, idx.line_idx, idx.offset
@@ -443,14 +467,17 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                     "cache {}: read access {:#010x} invalid hit at line {:#010x} ({}) offset {:x}",
                     self.name, addr, idx.line_number, idx.line_idx, idx.offset
                 );
+                self.print_to_debug("\tline is invalid: miss!".to_string());
 
                 if self.try_copy_from_sister(&idx) {
+                    self.print_to_debug(format!("\tfound in sister, copying"));
                     debug!("cache {}: line {:#010x} found in sister, copying...", self.name,
                            idx.line_number);
                     let mut line = self.lines[idx.line_idx].as_mut().unwrap();
                     line.last_access = self.accesses;
                     Ok((idx, line.data[idx.offset], self.latency))
                 } else {
+                    self.print_to_debug(format!("\tnot found in sister, querying next level"));
                     debug!(
                         "cache {}: line {:#010x} not found in sister, querying next level...",
                         self.name, idx.line_number,
@@ -476,12 +503,14 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                 );
 
                 if self.try_copy_from_sister(&idx) {
+                    self.print_to_debug(format!("\tfound in sister, copying"));
                     debug!("cache {}: line {:#010x} found in sister, copying...", self.name,
                            idx.line_number);
                     let mut line = self.lines[idx.line_idx].as_mut().unwrap();
                     line.last_access = self.accesses;
                     Ok((idx, line.data[idx.offset], self.latency))
                 } else {
+                    self.print_to_debug(format!("\tnot found in sister, querying next level"));
                     debug!(
                         "cache {}: line {:#010x} not found in sister, querying next level...",
                         self.name, idx.line_number,
@@ -545,6 +574,12 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
 
         false
     }
+
+    fn print_to_debug(&self, text: String) {
+        if let Some(tx) = &self.reporter {
+            tx.send(MemoryEvent::Debug(text)).unwrap();
+        }
+    }
 }
 
 impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
@@ -555,6 +590,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
 
         if let Some(ref tx) = self.reporter {
             tx.send(MemoryEvent::DataRead(addr, line_idx.line_number))?;
+            tx.send(MemoryEvent::Debug(format!("====================")))?;
         }
 
         Ok((data, cycles))
@@ -565,6 +601,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
 
         if let Some(ref tx) = self.reporter {
             tx.send(MemoryEvent::InstrRead(addr, line_idx.line_number))?;
+            tx.send(MemoryEvent::Debug(format!("====================")))?;
         }
 
         Ok((data, cycles))
@@ -599,6 +636,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
 
                 if let Some(ref tx) = self.reporter {
                     tx.send(MemoryEvent::Write(addr, idx.line_number))?;
+                    tx.send(MemoryEvent::Debug(format!("====================")))?;
                 }
 
                 Ok(self.latency)
@@ -626,6 +664,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
 
                 if let Some(ref tx) = self.reporter {
                     tx.send(MemoryEvent::Write(addr, idx.line_number))?;
+                    tx.send(MemoryEvent::Debug(format!("====================")))?;
                 }
 
                 Ok(cycles + self.latency)
