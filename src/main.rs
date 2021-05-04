@@ -18,6 +18,29 @@ use emulator::memory::{reporter::*, Cache, Memory, Ram, RepPolicy};
 use emulator::Cpu;
 use emulator::Instruction;
 
+const CONFIG_HELP: &'static str = "As configurações de memória podem ser as seguintes:
+(tabela copiada do `minips` de referência)
+
+|------|--------|-----------|-------------|--------|------------|-----------|
+| Conf | Níveis | Tipo      | Tamanho     | Map.   | Tam./Linha | Política  |
+|------|--------|-----------|-------------|--------|------------|-----------|
+| 1    | 0      | -         | -           | -      | -          | -         |
+|------|--------|-----------|-------------|--------|------------|-----------|
+| 2    | 1      | Unificada | 1024        | Direto | 32         | Aleatória |
+|------|--------|-----------|-------------|--------|------------|-----------|
+| 3    | 1      | Split     | 512/cada    | Direto | 32         | Aleatória |
+|------|--------|-----------|-------------|--------|------------|-----------|
+| 4    | 1      | Split     | 512/cada    | Direto | 32         | LRU       |
+|------|--------|-----------|-------------|--------|------------|-----------|
+| 5    | 1      | Split     | 512/cada    | 4 vias | 32         | LRU       |
+|------|--------|-----------|-------------|--------|------------|-----------|
+| 6    | 2      | Split     | L1 512/cada | 4 vias | 64         | LRU       |
+|      |        | Unificada | L2 2048     | 8 vias | 64         | LRU       |
+|------|--------|-----------|-------------|--------|------------|-----------|
+
+Se não informada, a configuração 1 é a padrão.
+";
+
 /// Carrega o arquivo num vetor de palavras de 32 bits.
 fn u32_vec_from_file(mut file: File) -> Vec<u32> {
     let mut data = Vec::new();
@@ -197,7 +220,7 @@ fn main() -> Result<()> {
     // Não vou comentar porque a API do clap é bem auto-descritiva
     let matches = App::new("minips-rs")
         .version(crate_version!())
-        .author("Edu Renesto, eduardo.renesto@aluno.ufabc.edu.br")
+        .author("Edu Renesto <eduardo.renesto@aluno.ufabc.edu.br>")
         .subcommand(
             SubCommand::with_name("decode")
                 .about("Desconstrói o binário, mostrando o código Assembly equivalente")
@@ -214,7 +237,7 @@ fn main() -> Result<()> {
                         .default_value("0x00400000")
                         .help("Endereço da primeira instrução"),
                 )
-                .arg(Arg::with_name("conf").required(true).index(1).help("Índice da configuração da memória"))
+                .arg(Arg::with_name("conf").required(true).index(1).help("Índice da configuração da memória").long_help(CONFIG_HELP))
                 .arg(Arg::with_name("file").required(false).index(2).help("O caminho do programa a ser executado")),
         )
         .subcommand(
@@ -236,7 +259,7 @@ fn main() -> Result<()> {
                         .default_value("minips.trace")
                         .help("Arquivo onde escrever os acessos de memória"),
                 )
-                .arg(Arg::with_name("conf").required(true).index(1).help("Índice da configuração da memória"))
+                .arg(Arg::with_name("conf").required(true).index(1).help("Índice da configuração da memória").long_help(CONFIG_HELP))
                 .arg(Arg::with_name("file").required(false).index(2).help("O caminho do programa a ser executado")),
         )
         .subcommand(
@@ -258,13 +281,13 @@ fn main() -> Result<()> {
                         .default_value("minips.trace")
                         .help("Arquivo onde escrever os acessos de memória"),
                 )
-                .arg(Arg::with_name("conf").required(true).index(1).help("Índice da configuração da memória"))
+                .arg(Arg::with_name("conf").required(true).index(1).help("Índice da configuração da memória").long_help(CONFIG_HELP))
                 .arg(Arg::with_name("file").required(false).index(2).help("O caminho do programa a ser executado")),
         )
         .subcommand(
             SubCommand::with_name("runelf")
                 .about("Carrega um arquivo ELF e o executa (bonus!)")
-                .arg(Arg::with_name("conf").required(true).index(1).help("Índice da configuração da memória"))
+                .arg(Arg::with_name("conf").required(true).index(1).help("Índice da configuração da memória").long_help(CONFIG_HELP))
                 .arg(Arg::with_name("file").required(false).index(2).help("O caminho do programa a ser executado")),
         )
         .subcommand(
@@ -480,6 +503,7 @@ fn main() -> Result<()> {
         Ok(())
     } else {
         eprintln!("{}", matches.usage());
+        eprintln!("Tente: minips-rs --help");
         Ok(())
     }
 }
