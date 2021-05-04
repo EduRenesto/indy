@@ -214,7 +214,7 @@ fn run_from_ram(ram: Ram, entry: u32, mem_cfg: &str, tx: Option<SyncSender<Memor
 fn main() -> Result<()> {
     color_eyre::install()?;
 
-    //simple_logger::SimpleLogger::new().init().unwrap();
+    env_logger::init();
 
     // Aqui é descrito o CLI do emulador.
     // Não vou comentar porque a API do clap é bem auto-descritiva
