@@ -198,7 +198,6 @@ fn main() -> Result<()> {
     let matches = App::new("minips-rs")
         .version(crate_version!())
         .author("Edu Renesto, eduardo.renesto@aluno.ufabc.edu.br")
-        .arg(Arg::with_name("conf").required(false).default_value("1").help("Índice da configuração da memória"))
         .subcommand(
             SubCommand::with_name("decode")
                 .about("Desconstrói o binário, mostrando o código Assembly equivalente")
@@ -215,7 +214,8 @@ fn main() -> Result<()> {
                         .default_value("0x00400000")
                         .help("Endereço da primeira instrução"),
                 )
-                .arg(Arg::with_name("file").index(1).required(true)),
+                .arg(Arg::with_name("conf").required(true).index(1).help("Índice da configuração da memória"))
+                .arg(Arg::with_name("file").required(false).index(2).help("O caminho do programa a ser executado")),
         )
         .subcommand(
             SubCommand::with_name("trace")
@@ -236,7 +236,8 @@ fn main() -> Result<()> {
                         .default_value("minips.trace")
                         .help("Arquivo onde escrever os acessos de memória"),
                 )
-                .arg(Arg::with_name("file").index(1).required(true)),
+                .arg(Arg::with_name("conf").required(true).index(1).help("Índice da configuração da memória"))
+                .arg(Arg::with_name("file").required(false).index(2).help("O caminho do programa a ser executado")),
         )
         .subcommand(
             SubCommand::with_name("debug")
@@ -257,21 +258,22 @@ fn main() -> Result<()> {
                         .default_value("minips.trace")
                         .help("Arquivo onde escrever os acessos de memória"),
                 )
-                .arg(Arg::with_name("file").index(1).required(true)),
+                .arg(Arg::with_name("conf").required(true).index(1).help("Índice da configuração da memória"))
+                .arg(Arg::with_name("file").required(false).index(2).help("O caminho do programa a ser executado")),
         )
         .subcommand(
             SubCommand::with_name("runelf")
                 .about("Carrega um arquivo ELF e o executa (bonus!)")
-                .arg(Arg::with_name("file").index(1).required(true)),
+                .arg(Arg::with_name("conf").required(true).index(1).help("Índice da configuração da memória"))
+                .arg(Arg::with_name("file").required(false).index(2).help("O caminho do programa a ser executado")),
         )
         .subcommand(
             SubCommand::with_name("decodeelf")
                 .about("Carrega um arquivo ELF e o desconstrói, mostrando o código Assembly equivalente (bonus!)")
-                .arg(Arg::with_name("file").index(1).required(true)),
+                .arg(Arg::with_name("file").required(true)),
         )
         .get_matches();
 
-    let mem_cfg = matches.value_of("conf").unwrap();
 
     if let Some(matches) = matches.subcommand_matches("decode") {
         // Desmonta o binário
@@ -291,11 +293,16 @@ fn main() -> Result<()> {
 
         Ok(())
     } else if let Some(matches) = matches.subcommand_matches("run") {
+        let (file, mem_cfg) = match matches.value_of("file") {
+            Some(file) => (file, matches.value_of("conf").unwrap()),
+            None => (matches.value_of("conf").unwrap(), "1"),
+        };
+
         let mut ram = Ram::new(100);
 
         // Executa o binário
         let entry = u32::from_str_radix(&matches.value_of("entry").unwrap()[2..], 16)?;
-        let executable = Executable::from_naked_files(matches.value_of("file").unwrap())?;
+        let executable = Executable::from_naked_files(file)?;
 
         //let mut cpu = Cpu::new(0x00400000, 0x7FFFEFFC, 0x10008000);
 
@@ -313,11 +320,16 @@ fn main() -> Result<()> {
 
         Ok(())
     } else if let Some(matches) = matches.subcommand_matches("trace") {
+        let (file, mem_cfg) = match matches.value_of("file") {
+            Some(file) => (file, matches.value_of("conf").unwrap()),
+            None => (matches.value_of("conf").unwrap(), "1"),
+        };
+
         let mut ram = Ram::new(100);
 
         // Executa o binário
         let entry = u32::from_str_radix(&matches.value_of("entry").unwrap()[2..], 16)?;
-        let executable = Executable::from_naked_files(matches.value_of("file").unwrap())?;
+        let executable = Executable::from_naked_files(file)?;
 
         //let mut cpu = Cpu::new(0x00400000, 0x7FFFEFFC, 0x10008000);
 
@@ -342,11 +354,16 @@ fn main() -> Result<()> {
 
         Ok(())
     } else if let Some(matches) = matches.subcommand_matches("debug") {
+        let (file, mem_cfg) = match matches.value_of("file") {
+            Some(file) => (file, matches.value_of("conf").unwrap()),
+            None => (matches.value_of("conf").unwrap(), "1"),
+        };
+
         let mut ram = Ram::new(100);
 
         // Executa o binário
         let entry = u32::from_str_radix(&matches.value_of("entry").unwrap()[2..], 16)?;
-        let executable = Executable::from_naked_files(matches.value_of("file").unwrap())?;
+        let executable = Executable::from_naked_files(file)?;
 
         //let mut cpu = Cpu::new(0x00400000, 0x7FFFEFFC, 0x10008000);
 
@@ -371,10 +388,15 @@ fn main() -> Result<()> {
 
         Ok(())
     } else if let Some(matches) = matches.subcommand_matches("runelf") {
+        let (file, mem_cfg) = match matches.value_of("file") {
+            Some(file) => (file, matches.value_of("conf").unwrap()),
+            None => (matches.value_of("conf").unwrap(), "1"),
+        };
+
         let mut ram = Ram::new(100);
 
         // Executa o elf
-        let mut file = File::open(matches.value_of("file").unwrap())?;
+        let mut file = File::open(file)?;
         let mut file_bytes = Vec::new();
         file.read_to_end(&mut file_bytes)?;
 
@@ -402,6 +424,8 @@ fn main() -> Result<()> {
                 ram.poke_from_slice(section.p_paddr as u32, &section_bytes[..])?;
             }
         }
+
+        ram.reset_stats();
 
         run_from_ram(ram, elf.entry as u32, mem_cfg, None)?;
 
@@ -439,8 +463,8 @@ fn main() -> Result<()> {
                 let mut pos = 0;
                 for word in section_bytes {
                     match Instruction::decode(word) {
-                        Ok(instr) => print!("{:#010x}: {}", offset + pos, instr),
-                        Err(_) => print!("{:#010x}: ???", offset + pos),
+                        Ok(instr) => print!("{:08x}:\t{:08x}\t{}", offset + pos, word, instr),
+                        Err(_) => print!("{:08x}:\t{:08x}\t???", word, offset + pos),
                     }
                     if offset + pos == elf.entry {
                         println!(" # <- entry");
