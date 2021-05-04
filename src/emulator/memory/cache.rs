@@ -28,7 +28,8 @@ const fn log2_iter(n: usize) -> usize {
 
 /// Calcula o log2 de um inteiro usando uma lookup table.
 /// Se n \in [1; 1024], retorna em O(1).
-/// Na real, é um quick hack. :'B
+/// Na real, é um quick hack, que pode rodar em compile time
+/// porque é `const fn`. :'B
 const fn log2_lut(n: usize) -> usize {
     match n.next_power_of_two() {
         1 => 0,
@@ -149,6 +150,14 @@ pub struct Cache<'a, T: Memory, const L: usize, const N: usize, const A: usize> 
     fetch_from_sister: bool,
 }
 
+macro_rules! print_debug {
+    ($r:expr, $($arg:tt)*) => {
+        if let Some(tx) = &$r {
+            tx.send(MemoryEvent::Debug(format!($($arg)*))).unwrap();
+        }
+    }
+}
+
 /// Implementações comuns a todas as configurações de cache.
 #[allow(clippy::useless_format)]
 impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T, L, N, A> {
@@ -223,10 +232,10 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                 Some(ref line) if line.tag == tag => {
                     let offset = (addr as usize / 4) % L;
                     debug!("cache {}: found at way {}", self.name, line_idx);
-                    self.print_to_debug(format!(
+                    print_debug!(self.reporter,
                         "{}: {:#010x} tag matched at line {:#010x} way {}",
                         self.name, addr, line_number, i
-                    ));
+                    );
                     return FindLine::Hit(LineIndex {
                         line_number,
                         set_idx,
@@ -239,7 +248,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
             }
         }
 
-        self.print_to_debug(format!("{}: miss", self.name));
+        print_debug!(self.reporter, "{}: miss", self.name);
 
         //if A == 1 {
         //    let line_idx = (base / 4) as usize % N;
@@ -254,7 +263,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
 
                 debug!("cache {}: randomly replacing way {}", self.name, line_idx);
 
-                self.print_to_debug(format!("\trandomly choosing way {}", way));
+                print_debug!(self.reporter, "\trandomly choosing way {}", way);
 
                 let offset = (addr as usize / 4) % L;
                 FindLine::Miss(LineIndex {
@@ -293,7 +302,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
 
                 debug!("cache {}: LRU choose way {}", self.name, way);
 
-                self.print_to_debug(format!("\tLRU-choosing way {}", way));
+                print_debug!(self.reporter, "\tLRU-choosing way {}", way);
 
                 let offset = (addr as usize / 4) % L;
                 FindLine::Miss(LineIndex {
@@ -325,7 +334,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                     self.name, idx.line_number, idx.line_idx, base
                 );
 
-                self.print_to_debug(format!("\tflushing line {:#010x}", idx.line_number));
+                print_debug!(self.reporter, "\tflushing line {:#010x}", idx.line_number);
 
                 if let Some(sister) = self.sister {
                     unsafe {
@@ -363,10 +372,11 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                     "cache {}: no need to write back line {:#010x}",
                     self.name, idx.line_number
                 );
-                self.print_to_debug(format!(
+                print_debug!(
+                    self.reporter,
                     "\tno need to write back line {:#010x}",
                     idx.line_number
-                ));
+                );
                 Ok(0)
             }
         }
@@ -383,10 +393,11 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
             self.name, base, idx.line_number, idx.line_idx,
         );
 
-        self.print_to_debug(format!(
+        print_debug!(
+            self.reporter,
             "\tloading line {:#010x} from {:#010x}",
             idx.line_number, base
-        ));
+        );
 
         //let tag = self.calc_tag(base);
 
@@ -451,9 +462,9 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
         let base = addr - (4 * offset as u32);
 
         match self.find_line(addr) {
-            FindLine::Hit(idx) if self.lines[idx.line_idx].unwrap().valid => {
+            FindLine::Hit(idx) if self.lines[idx.line_idx].as_ref().unwrap().valid => {
                 // Hit válido
-                self.print_to_debug("\tline is valid: hit!".to_string());
+                print_debug!(self.reporter, "\tline is valid: hit!");
                 debug!(
                     "cache {}: read access {:#010x} hit at line {:#010x} ({}) offset {:x}",
                     self.name, addr, idx.line_number, idx.line_idx, idx.offset
@@ -477,10 +488,10 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                     "cache {}: read access {:#010x} invalid hit at line {:#010x} ({}) offset {:x}",
                     self.name, addr, idx.line_number, idx.line_idx, idx.offset
                 );
-                self.print_to_debug("\tline is invalid: miss!".to_string());
+                print_debug!(self.reporter, "\tline is invalid: miss!");
 
                 if self.try_copy_from_sister(&idx) {
-                    self.print_to_debug(format!("\tfound in sister, copying"));
+                    print_debug!(self.reporter, "\tfound in sister, copying");
                     debug!(
                         "cache {}: line {:#010x} found in sister, copying...",
                         self.name, idx.line_number
@@ -489,7 +500,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                     line.last_access = self.accesses;
                     Ok((idx, line.data[idx.offset], self.latency))
                 } else {
-                    self.print_to_debug(format!("\tnot found in sister, querying next level"));
+                    print_debug!(self.reporter, "\tnot found in sister, querying next level");
                     debug!(
                         "cache {}: line {:#010x} not found in sister, querying next level...",
                         self.name, idx.line_number,
@@ -515,7 +526,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                 );
 
                 if self.try_copy_from_sister(&idx) {
-                    self.print_to_debug(format!("\tfound in sister, copying"));
+                    print_debug!(self.reporter, "\tfound in sister, copying");
                     debug!(
                         "cache {}: line {:#010x} found in sister, copying...",
                         self.name, idx.line_number
@@ -524,7 +535,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                     line.last_access = self.accesses;
                     Ok((idx, line.data[idx.offset], self.latency))
                 } else {
-                    self.print_to_debug(format!("\tnot found in sister, querying next level"));
+                    print_debug!(self.reporter, "\tnot found in sister, querying next level");
                     debug!(
                         "cache {}: line {:#010x} not found in sister, querying next level...",
                         self.name, idx.line_number,
@@ -580,7 +591,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
             match &sister.lines[line_idx] {
                 Some(ref line) if line.tag == idx.tag => {
                     // Achou na irmã!
-                    self.lines[idx.line_idx].replace(*line);
+                    self.lines[idx.line_idx].replace(line.clone());
                     return true;
                 }
                 _ => continue,
@@ -629,9 +640,9 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
         self.accesses += 1;
 
         match self.find_line(addr) {
-            FindLine::Hit(idx) if self.lines[idx.line_idx].unwrap().valid => {
+            FindLine::Hit(idx) if self.lines[idx.line_idx].as_ref().unwrap().valid => {
                 // Hit válido
-                self.print_to_debug("\tline is valid: hit!".to_string());
+                print_debug!(self.reporter, "\tline is valid: hit!");
                 debug!(
                     "cache {}: read access {:#010x} hit at line {:#010x} ({}) offset {:x}",
                     self.name, addr, idx.line_number, idx.line_idx, idx.offset
@@ -659,10 +670,10 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
                     "cache {}: read access {:#010x} invalid hit at line {:#010x} ({}) offset {:x}",
                     self.name, addr, idx.line_number, idx.line_idx, idx.offset
                 );
-                self.print_to_debug("\tline is invalid: miss!".to_string());
+                print_debug!(self.reporter, "\tline is invalid: miss!");
 
                 if self.try_copy_from_sister(&idx) {
-                    self.print_to_debug(format!("\tfound in sister, copying"));
+                    print_debug!(self.reporter, "\tfound in sister, copying");
                     debug!(
                         "cache {}: line {:#010x} found in sister, copying...",
                         self.name, idx.line_number
@@ -675,7 +686,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
 
                     Ok(self.latency)
                 } else {
-                    self.print_to_debug(format!("\tnot found in sister, querying next level"));
+                    print_debug!(self.reporter, "\tnot found in sister, querying next level");
                     debug!(
                         "cache {}: line {:#010x} not found in sister, querying next level...",
                         self.name, idx.line_number,
@@ -704,7 +715,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
                 );
 
                 if self.try_copy_from_sister(&idx) {
-                    self.print_to_debug(format!("\tfound in sister, copying"));
+                    print_debug!(self.reporter, "\tfound in sister, copying");
                     debug!(
                         "cache {}: line {:#010x} found in sister, copying...",
                         self.name, idx.line_number
@@ -717,7 +728,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
 
                     Ok(self.latency)
                 } else {
-                    self.print_to_debug(format!("\tnot found in sister, querying next level"));
+                    print_debug!(self.reporter, "\tnot found in sister, querying next level");
                     debug!(
                         "cache {}: line {:#010x} not found in sister, querying next level...",
                         self.name, idx.line_number,
