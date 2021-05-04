@@ -272,7 +272,7 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
                     4 => {
                         let mut addr = self.regs[Register(4)];
                         let mut byte_offset = addr % 4;
-                        addr = addr - byte_offset;
+                        addr -= byte_offset;
 
                         'outer: loop {
                             let (val, cycles) = self.mem.peek(addr)?;

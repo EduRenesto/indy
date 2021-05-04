@@ -19,7 +19,7 @@ const fn log2_iter(n: usize) -> usize {
     let mut i = 0;
 
     while n != 1 {
-        n = n >> 1;
+        n >>= 1;
         i += 1;
     }
 
@@ -150,6 +150,7 @@ pub struct Cache<'a, T: Memory, const L: usize, const N: usize, const A: usize> 
 }
 
 /// Implementações comuns a todas as configurações de cache.
+#[allow(clippy::useless_format)]
 impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T, L, N, A> {
     /// Cria uma nova cache.
     pub fn new(
@@ -596,6 +597,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
     }
 }
 
+#[allow(clippy::useless_format)]
 impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
     for Cache<'a, T, L, N, A>
 {

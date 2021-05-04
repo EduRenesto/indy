@@ -41,11 +41,11 @@ impl StatsReporter {
         let start = *self
             .start
             .as_ref()
-            .ok_or(eyre!("StatsReporter did not start!"))?;
+            .ok_or_else(|| eyre!("StatsReporter did not start!"))?;
         let finish = *self
             .finish
             .as_ref()
-            .ok_or(eyre!("StatsReporter did not finish!"))?;
+            .ok_or_else(|| eyre!("StatsReporter did not finish!"))?;
 
         let delta = finish - start;
 
@@ -53,7 +53,7 @@ impl StatsReporter {
 
         let ips = total as f64 / delta.as_secs_f64();
 
-        println!("");
+        println!();
         println!("Execution finished successfully!");
         println!("--------------------------");
         println!(

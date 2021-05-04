@@ -79,6 +79,8 @@ impl std::fmt::Display for FloatRegister {
 /// Eles são gerados automaticamente pela macro `instr_from_yaml` usando o
 /// arquivo `instructions.yml`, que está na raíz do projeto. A implementação
 /// dessa macro está na subcrate `minips-macros`.
+#[allow(clippy::inconsistent_struct_constructor)]
+#[allow(clippy::upper_case_acronyms)]
 mod autogen {
     use minips_macros::instr_from_yaml;
 

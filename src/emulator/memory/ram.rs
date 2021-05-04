@@ -65,6 +65,7 @@ impl Memory for Ram {
         Ok((*self.memory.get(&addr).unwrap_or(&0), self.latency))
     }
 
+    #[allow(clippy::needless_range_loop)]
     fn peek_into_slice(&mut self, addr: u32, target: &mut [u32]) -> Result<usize> {
         check_alignment!(addr);
 

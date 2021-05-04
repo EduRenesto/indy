@@ -28,7 +28,7 @@ pub fn sign_extend_cast(val: u32, init_size: u32) -> i32 {
 /// Calcula (4) BranchAddr no greencard
 pub fn branch_addr(val: u32) -> i32 {
     let fifteenth_bit = (val & (1 << 15)) >> 15;
-    let mut val = 0 | (val << 2);
+    let mut val = val << 2;
     for i in 17..=31 {
         val |= fifteenth_bit << i;
     }

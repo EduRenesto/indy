@@ -40,6 +40,7 @@ pub struct MemoryReporter;
 impl MemoryReporter {
     /// Cria um novo `MemoryReporter`, iniciando a thread e retornando o join handle
     /// da mesma, e o write end do channel.
+    #[allow(clippy::new_ret_no_self)]
     pub fn new(file: File, debug: bool) -> (thread::JoinHandle<()>, mpsc::SyncSender<MemoryEvent>) {
         // Quanto maior o valor aqui, mais rápido o `trace` e `debug` vão rodar.
         // No entanto, vai consumir mais memória.
