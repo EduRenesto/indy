@@ -10,12 +10,6 @@ pub use ram::Ram;
 
 use std::cell::UnsafeCell;
 
-/// Armazena os status de acesso do dispositivo de memória.
-pub struct MemoryStats {
-    pub accesses: usize,
-    pub misses: usize,
-}
-
 /// Interface geral de um dispositivo de memória.
 pub trait Memory {
     /// Lê o valor armazenado no endereço `addr`. Retorna uma tupla contendo
@@ -26,8 +20,16 @@ pub trait Memory {
     /// o valor e o total de ciclos gasto.
     fn peek_instruction(&mut self, addr: u32) -> Result<(u32, usize)>;
 
+    /// Copia um range de memória contíguo a partir de `addr` para
+    /// `target`. Retorna o total de ciclos gasto.
+    fn peek_into_slice(&mut self, addr: u32, target: &mut [u32]) -> Result<usize>;
+
     /// Escreve o valor `val` no endereço `addr`. Retorna o total de ciclos gasto.
     fn poke(&mut self, addr: u32, val: u32) -> Result<usize>;
+
+    /// Carrega um bloco de dados na memória a partir do endereço especificado.
+    /// Retorna o total de ciclos gasto.
+    fn poke_from_slice(&mut self, base: u32, data: &[u32]) -> Result<usize>;
 
     /// Escreve as estatísticas de acesso na saída padrão.
     /// Se `recurse` é `true` e a memória tem outros níveis abaixo,
@@ -48,17 +50,6 @@ pub trait Memory {
         //Ok(((word & (0xFF << offset )) >> offset) as u8)
         Ok(word.to_le_bytes()[offset as usize])
     }
-
-    /// Carrega um bloco de dados na memória a partir do endereço especificado.
-    fn load_slice_into_addr(&mut self, base: u32, data: &[u32]) -> Result<()> {
-        let mut addr = base;
-        for word in data {
-            self.poke(addr, *word)?;
-            addr += 4;
-        }
-
-        Ok(())
-    }
 }
 
 // LOL, eu não sabia que podia fazer isso!
@@ -72,8 +63,16 @@ impl<'a, T: Memory> Memory for &'a UnsafeCell<T> {
         unsafe { (&mut *self.get()).peek_instruction(addr) }
     }
 
+    fn peek_into_slice(&mut self, addr: u32, target: &mut [u32]) -> Result<usize> {
+        unsafe { (&mut *self.get()).peek_into_slice(addr, target) }
+    }
+
     fn poke(&mut self, addr: u32, val: u32) -> Result<usize> {
         unsafe { (&mut *self.get()).poke(addr, val) }
+    }
+
+    fn poke_from_slice(&mut self, base: u32, data: &[u32]) -> Result<usize> {
+        unsafe { (&mut *self.get()).poke_from_slice(base, data) }
     }
 
     fn dump(&self) -> Result<()> {

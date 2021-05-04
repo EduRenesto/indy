@@ -2,9 +2,10 @@
 //! Futuramente, quero implementar uma MMU para mapping e caches, e
 //! provavelmente boa parte dessa empreitada aparecerá nesse módulo.
 
-use super::{Memory, MemoryStats};
+use super::Memory;
 
 use color_eyre::eyre::{eyre, Result};
+use log::debug;
 
 use std::collections::HashMap;
 
@@ -64,6 +65,20 @@ impl Memory for Ram {
         Ok((*self.memory.get(&addr).unwrap_or(&0), self.latency))
     }
 
+    fn peek_into_slice(&mut self, addr: u32, target: &mut [u32]) -> Result<usize> {
+        check_alignment!(addr);
+
+        self.accesses += 1;
+
+        for i in 0..target.len() {
+            let target_addr = addr + 4*i as u32;
+            target[i] = *self.memory.get(&target_addr).unwrap_or(&0);
+            debug!("ram: target[{}] <- {:#010x}", i, target_addr);
+        }
+
+        Ok(self.latency)
+    }
+
     /// Modifica um valor no endereço especificado.
     fn poke(&mut self, addr: u32, val: u32) -> Result<usize> {
         check_alignment!(addr);
@@ -73,6 +88,16 @@ impl Memory for Ram {
         //println!("mem: write {:#010x}", addr);
 
         self.memory.insert(addr, val);
+
+        Ok(self.latency)
+    }
+
+    fn poke_from_slice(&mut self, base: u32, data: &[u32]) -> Result<usize> {
+        let mut addr = base;
+        for word in data {
+            self.poke(addr, *word)?;
+            addr += 4;
+        }
 
         Ok(self.latency)
     }

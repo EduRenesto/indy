@@ -1,5 +1,5 @@
 use super::reporter::MemoryEvent;
-use super::{Memory, MemoryStats};
+use super::Memory;
 
 use std::cell::UnsafeCell;
 use std::sync::mpsc::Sender;
@@ -342,18 +342,20 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                 let cycles = unsafe {
                     let mut total_cycles = 0;
                     //let addr = idx.to_addr::<L>();
-                    for i in 0..L {
-                        let a = base + 4 * i as u32;
-                        debug!(
-                            "cache {}: next[{:#010x}] <- {:#010x}[{}]",
-                            self.name, a, idx.line_number, i
-                        );
-                        let cycles = (&mut *self.next.get()).poke(a, line.data[i])?;
+                    //for i in 0..L {
+                    //    let a = base + 4 * i as u32;
+                    //    debug!(
+                    //        "cache {}: next[{:#010x}] <- {:#010x}[{}]",
+                    //        self.name, a, idx.line_number, i
+                    //    );
+                    //    let cycles = (&mut *self.next.get()).poke(a, line.data[i])?;
 
-                        if cycles > total_cycles {
-                            total_cycles = cycles;
-                        }
-                    }
+                    //    if cycles > total_cycles {
+                    //        total_cycles = cycles;
+                    //    }
+                    //}
+
+                    total_cycles += (&mut *self.next.get()).poke_from_slice(base, &line.data[..])?;
 
                     total_cycles
                 };
@@ -388,18 +390,21 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
 
         if let Some(line) = self.lines[idx.line_idx].as_mut() {
             unsafe {
-                for i in 0..L {
-                    let a = base + 4 * i as u32;
-                    let (d, cycles) = (&mut *self.next.get()).peek(a)?;
-                    debug!(
-                        "cache {}: {:#010x}[{}] <- next[{:#010x}] ({:#010x})",
-                        self.name, idx.line_number, i, a, d
-                    );
-                    line.data[i] = d;
-                    if cycles > total_cycles {
-                        total_cycles = cycles;
-                    }
-                }
+                //for i in 0..L {
+                //    let a = base + 4 * i as u32;
+                //    let (d, cycles) = (&mut *self.next.get()).peek(a)?;
+                //    debug!(
+                //        "cache {}: {:#010x}[{}] <- next[{:#010x}] ({:#010x})",
+                //        self.name, idx.line_number, i, a, d
+                //    );
+                //    line.data[i] = d;
+                //    if cycles > total_cycles {
+                //        total_cycles = cycles;
+                //    }
+                //}
+
+                let next = &mut *self.next.get();
+                total_cycles += next.peek_into_slice(base, &mut line.data[..])?;
             }
             line.dirty = false;
             line.tag = idx.tag;
@@ -407,18 +412,21 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
         } else {
             let mut data = [0; L];
             unsafe {
-                for i in 0..L {
-                    let a = base + 4 * i as u32;
-                    let (d, cycles) = (&mut *self.next.get()).peek(a)?;
-                    debug!(
-                        "cache {}: {:#010x}[{}] <- next[{:#010x}] ({:#010x})",
-                        self.name, idx.line_number, i, a, d
-                    );
-                    data[i] = d;
-                    if cycles > total_cycles {
-                        total_cycles = cycles;
-                    }
-                }
+                //for i in 0..L {
+                //    let a = base + 4 * i as u32;
+                //    let (d, cycles) = (&mut *self.next.get()).peek(a)?;
+                //    debug!(
+                //        "cache {}: {:#010x}[{}] <- next[{:#010x}] ({:#010x})",
+                //        self.name, idx.line_number, i, a, d
+                //    );
+                //    data[i] = d;
+                //    if cycles > total_cycles {
+                //        total_cycles = cycles;
+                //    }
+                //}
+                let next = &mut *self.next.get();
+
+                total_cycles += next.peek_into_slice(base, &mut data[..])?;
             }
 
             self.lines[idx.line_idx] = Some(Line {
@@ -607,6 +615,120 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
         Ok((data, cycles))
     }
 
+    fn peek_into_slice(&mut self, addr: u32, target: &mut [u32]) -> Result<usize> {
+        assert!(target.len() <= L);
+
+        self.accesses += 1;
+
+        match self.find_line(addr) {
+            FindLine::Hit(idx) if self.lines[idx.line_idx].unwrap().valid => {
+                // Hit válido
+                self.print_to_debug("\tline is valid: hit!".to_string());
+                debug!(
+                    "cache {}: read access {:#010x} hit at line {:#010x} ({}) offset {:x}",
+                    self.name, addr, idx.line_number, idx.line_idx, idx.offset
+                );
+
+                let line = self.lines[idx.line_idx].as_mut().unwrap();
+                line.last_access = self.accesses;
+
+                let range = (idx.offset)..(idx.offset+target.len());
+                target.copy_from_slice(&line.data[range]);
+
+                Ok(self.latency)
+            }
+            FindLine::Hit(idx) => {
+                // Hit inválido
+                // i.e. registra miss e tenta pegar da irmã.
+                // se não rolar na irmã, aí é miss de verdade.
+                // DISCLAIMER: aqui não é preciso checar se tá dirty ou não
+                // antes de fazer o load.
+                // Só as caches de instruções vão cair nesse ramo, e não há escrita a partir
+                // delas. Então, os bits de dirty sempre vão ser false.
+
+                self.misses += 1;
+                debug!(
+                    "cache {}: read access {:#010x} invalid hit at line {:#010x} ({}) offset {:x}",
+                    self.name, addr, idx.line_number, idx.line_idx, idx.offset
+                );
+                self.print_to_debug("\tline is invalid: miss!".to_string());
+
+                if self.try_copy_from_sister(&idx) {
+                    self.print_to_debug(format!("\tfound in sister, copying"));
+                    debug!("cache {}: line {:#010x} found in sister, copying...", self.name,
+                           idx.line_number);
+                    let mut line = self.lines[idx.line_idx].as_mut().unwrap();
+                    line.last_access = self.accesses;
+
+                    let range = (idx.offset)..(idx.offset+target.len());
+                    target.copy_from_slice(&line.data[range]);
+
+                    Ok(self.latency)
+                } else {
+                    self.print_to_debug(format!("\tnot found in sister, querying next level"));
+                    debug!(
+                        "cache {}: line {:#010x} not found in sister, querying next level...",
+                        self.name, idx.line_number,
+                    );
+
+                    let mut cycles = 0;
+
+                    // Faz o flush da linha antiga
+                    cycles += self.flush_line(&idx)?;
+                    cycles += self.load_into_line(&idx, addr)?; // HACK HACK HACK
+
+                    let mut line = self.lines[idx.line_idx].as_mut().unwrap();
+                    line.last_access = self.accesses;
+
+                    let range = (idx.offset)..(idx.offset+target.len());
+                    target.copy_from_slice(&line.data[range]);
+
+                    Ok(self.latency + cycles)
+                }
+            }
+            FindLine::Miss(idx) => {
+                self.misses += 1;
+                debug!(
+                    "cache {}: read access {:#010x} miss at line {:#010x} ({}) offset {:x}",
+                    self.name, addr, idx.line_number, idx.line_idx, idx.offset
+                );
+
+                if self.try_copy_from_sister(&idx) {
+                    self.print_to_debug(format!("\tfound in sister, copying"));
+                    debug!("cache {}: line {:#010x} found in sister, copying...", self.name,
+                           idx.line_number);
+                    let mut line = self.lines[idx.line_idx].as_mut().unwrap();
+                    line.last_access = self.accesses;
+
+                    let range = (idx.offset)..(idx.offset+target.len());
+                    target.copy_from_slice(&line.data[range]);
+
+                    Ok(self.latency)
+                } else {
+                    self.print_to_debug(format!("\tnot found in sister, querying next level"));
+                    debug!(
+                        "cache {}: line {:#010x} not found in sister, querying next level...",
+                        self.name, idx.line_number,
+                    );
+
+                    let mut cycles = 0;
+
+                    // Faz o flush da linha antiga
+                    cycles += self.flush_line(&idx)?;
+                    cycles += self.load_into_line(&idx, addr)?; // HACK HACK HACK
+
+                    let mut line = self.lines[idx.line_idx].as_mut().unwrap();
+                    line.last_access = self.accesses;
+
+                    let range = (idx.offset)..(idx.offset+target.len());
+                    target.copy_from_slice(&line.data[range]);
+
+                    Ok(self.latency + cycles)
+                }
+            }
+        }
+    }
+
     fn poke(&mut self, addr: u32, val: u32) -> Result<usize> {
         self.accesses += 1;
 
@@ -664,6 +786,77 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
 
                 if let Some(ref tx) = self.reporter {
                     tx.send(MemoryEvent::Write(addr, idx.line_number))?;
+                    tx.send(MemoryEvent::Debug(format!("====================")))?;
+                }
+
+                Ok(cycles + self.latency)
+            }
+        }
+    }
+
+    fn poke_from_slice(&mut self, base: u32, data: &[u32]) -> Result<usize> {
+        assert!(data.len() < L);
+
+        self.accesses += 1;
+
+        if let Some(sister) = self.sister {
+            unsafe {
+                // Se a irmã tem esse endereço em uma linha, então a invalide.
+                (&mut *sister.get()).invalidate_line(base);
+            }
+        }
+
+        match self.find_line(base) {
+            FindLine::Hit(idx) => {
+                debug!(
+                    "cache {}: write access {:#010x} hit at line {:#010x} ({}) offset {:x}",
+                    self.name, base, idx.line_number, idx.line_idx, idx.offset
+                );
+
+                let range = (idx.offset)..(idx.offset + data.len());
+
+                let mut line = self.lines[idx.line_idx].as_mut().unwrap();
+                line.data[range].copy_from_slice(data);
+                line.dirty = true;
+                line.last_access = self.accesses;
+
+                debug!(
+                    "cache {}: line {:#010x} ({}) marked dirty",
+                    self.name, idx.line_number, idx.line_idx
+                );
+
+                if let Some(ref tx) = self.reporter {
+                    tx.send(MemoryEvent::Write(base, idx.line_number))?;
+                    tx.send(MemoryEvent::Debug(format!("====================")))?;
+                }
+
+                Ok(self.latency)
+            }
+            FindLine::Miss(idx) => {
+                self.misses += 1;
+                debug!(
+                    "cache {}: write access {:#010x} miss at line {:#010x} ({}) offset {:x}",
+                    self.name, base, idx.line_number, idx.line_idx, idx.offset
+                );
+
+                let offset = (base / 4) as usize % L;
+                let basep = base - (4 * offset as u32);
+
+                let mut cycles = 0;
+
+                // Faz o flush da linha antiga
+                cycles += self.flush_line(&idx)?;
+                cycles += self.load_into_line(&idx, basep)?;
+
+                let range = (idx.offset)..(idx.offset + data.len());
+
+                let mut line = self.lines[idx.line_idx].as_mut().unwrap();
+                line.data[range].copy_from_slice(data);
+                line.dirty = true;
+                line.last_access = self.accesses;
+
+                if let Some(ref tx) = self.reporter {
+                    tx.send(MemoryEvent::Write(base, idx.line_number))?;
                     tx.send(MemoryEvent::Debug(format!("====================")))?;
                 }
 
