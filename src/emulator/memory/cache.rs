@@ -795,7 +795,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
     }
 
     fn poke_from_slice(&mut self, base: u32, data: &[u32]) -> Result<usize> {
-        assert!(data.len() < L);
+        assert!(data.len() <= L);
 
         self.accesses += 1;
 
