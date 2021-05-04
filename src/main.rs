@@ -196,7 +196,7 @@ fn main() -> Result<()> {
                     UnsafeCell::new(Cache::new("L1i", &ram, RepPolicy::Random, 1, None));
 
                 unsafe {
-                    (&mut *l1d.get()).set_sister(&l1i, false);
+                    (&mut *l1d.get()).set_sister(&l1i, true);
                     (&mut *l1i.get()).set_sister(&l1d, true);
                 }
 
@@ -211,7 +211,7 @@ fn main() -> Result<()> {
                     UnsafeCell::new(Cache::new("L1i", &ram, RepPolicy::LeastRecentlyUsed, 1, None));
 
                 unsafe {
-                    (&mut *l1d.get()).set_sister(&l1i, false);
+                    (&mut *l1d.get()).set_sister(&l1i, true);
                     (&mut *l1i.get()).set_sister(&l1d, true);
                 }
 
@@ -226,7 +226,7 @@ fn main() -> Result<()> {
                     UnsafeCell::new(Cache::new("L1i", &ram, RepPolicy::LeastRecentlyUsed, 1, None));
 
                 unsafe {
-                    (&mut *l1d.get()).set_sister(&l1i, false);
+                    (&mut *l1d.get()).set_sister(&l1i, true);
                     (&mut *l1i.get()).set_sister(&l1d, true);
                 }
 
@@ -245,7 +245,7 @@ fn main() -> Result<()> {
                     UnsafeCell::new(Cache::new("L1i", &l2, RepPolicy::LeastRecentlyUsed, 1, None));
 
                 unsafe {
-                    (&mut *l1d.get()).set_sister(&l1i, false);
+                    (&mut *l1d.get()).set_sister(&l1i, true);
                     (&mut *l1i.get()).set_sister(&l1d, true);
                 }
 
@@ -277,6 +277,8 @@ fn main() -> Result<()> {
             ram.poke_from_slice(0x00800000, &data[..])?;
         }
 
+        ram.reset_stats();
+
         let out_file = matches.value_of("outfile").unwrap();
         let out_file = File::create(out_file)?;
         let (rep_thread, tx) = MemoryReporter::new(out_file, false);
@@ -307,7 +309,7 @@ fn main() -> Result<()> {
                     UnsafeCell::new(Cache::new("L1i", &ram, RepPolicy::Random, 1, Some(tx.clone())));
 
                 unsafe {
-                    (&mut *l1d.get()).set_sister(&l1i, false);
+                    (&mut *l1d.get()).set_sister(&l1i, true);
                     (&mut *l1i.get()).set_sister(&l1d, true);
                 }
 
@@ -322,7 +324,7 @@ fn main() -> Result<()> {
                     UnsafeCell::new(Cache::new("L1i", &ram, RepPolicy::LeastRecentlyUsed, 1, Some(tx.clone())));
 
                 unsafe {
-                    (&mut *l1d.get()).set_sister(&l1i, false);
+                    (&mut *l1d.get()).set_sister(&l1i, true);
                     (&mut *l1i.get()).set_sister(&l1d, true);
                 }
 
@@ -337,7 +339,26 @@ fn main() -> Result<()> {
                     UnsafeCell::new(Cache::new("L1i", &ram, RepPolicy::LeastRecentlyUsed, 1, Some(tx.clone())));
 
                 unsafe {
-                    (&mut *l1d.get()).set_sister(&l1i, false);
+                    (&mut *l1d.get()).set_sister(&l1i, true);
+                    (&mut *l1i.get()).set_sister(&l1d, true);
+                }
+
+                let mut cpu = Cpu::new(&l1d, &l1i, entry, 0x7FFFEFFC, 0x10008000);
+                cpu.run()?;
+            }
+            "6" => {
+                let ram = UnsafeCell::new(ram);
+
+                let l2: UnsafeCell<Cache<_, 16, 32, 8>> =
+                    UnsafeCell::new(Cache::new("L2", &ram, RepPolicy::LeastRecentlyUsed, 10, None));
+
+                let l1d: UnsafeCell<Cache<_, 16, 8, 4>> =
+                    UnsafeCell::new(Cache::new("L1d", &l2, RepPolicy::LeastRecentlyUsed, 1, Some(tx.clone())));
+                let l1i: UnsafeCell<Cache<_, 16, 8, 4>> =
+                    UnsafeCell::new(Cache::new("L1i", &l2, RepPolicy::LeastRecentlyUsed, 1, Some(tx.clone())));
+
+                unsafe {
+                    (&mut *l1d.get()).set_sister(&l1i, true);
                     (&mut *l1i.get()).set_sister(&l1d, true);
                 }
 
@@ -367,6 +388,8 @@ fn main() -> Result<()> {
         if let Some(ref data) = executable.rodata {
             ram.poke_from_slice(0x00800000, &data[..])?;
         }
+
+        ram.reset_stats();
 
         let out_file = matches.value_of("outfile").unwrap();
         let out_file = File::create(out_file)?;
@@ -398,7 +421,7 @@ fn main() -> Result<()> {
                     UnsafeCell::new(Cache::new("L1i", &ram, RepPolicy::Random, 1, Some(tx.clone())));
 
                 unsafe {
-                    (&mut *l1d.get()).set_sister(&l1i, false);
+                    (&mut *l1d.get()).set_sister(&l1i, true);
                     (&mut *l1i.get()).set_sister(&l1d, true);
                 }
 
@@ -413,7 +436,7 @@ fn main() -> Result<()> {
                     UnsafeCell::new(Cache::new("L1i", &ram, RepPolicy::LeastRecentlyUsed, 1, Some(tx.clone())));
 
                 unsafe {
-                    (&mut *l1d.get()).set_sister(&l1i, false);
+                    (&mut *l1d.get()).set_sister(&l1i, true);
                     (&mut *l1i.get()).set_sister(&l1d, true);
                 }
 
@@ -428,7 +451,26 @@ fn main() -> Result<()> {
                     UnsafeCell::new(Cache::new("L1i", &ram, RepPolicy::LeastRecentlyUsed, 1, Some(tx.clone())));
 
                 unsafe {
-                    (&mut *l1d.get()).set_sister(&l1i, false);
+                    (&mut *l1d.get()).set_sister(&l1i, true);
+                    (&mut *l1i.get()).set_sister(&l1d, true);
+                }
+
+                let mut cpu = Cpu::new(&l1d, &l1i, entry, 0x7FFFEFFC, 0x10008000);
+                cpu.run()?;
+            }
+            "6" => {
+                let ram = UnsafeCell::new(ram);
+
+                let l2: UnsafeCell<Cache<_, 16, 32, 8>> =
+                    UnsafeCell::new(Cache::new("L2", &ram, RepPolicy::LeastRecentlyUsed, 10, None));
+
+                let l1d: UnsafeCell<Cache<_, 16, 8, 4>> =
+                    UnsafeCell::new(Cache::new("L1d", &l2, RepPolicy::LeastRecentlyUsed, 1, Some(tx.clone())));
+                let l1i: UnsafeCell<Cache<_, 16, 8, 4>> =
+                    UnsafeCell::new(Cache::new("L1i", &l2, RepPolicy::LeastRecentlyUsed, 1, Some(tx.clone())));
+
+                unsafe {
+                    (&mut *l1d.get()).set_sister(&l1i, true);
                     (&mut *l1i.get()).set_sister(&l1d, true);
                 }
 
