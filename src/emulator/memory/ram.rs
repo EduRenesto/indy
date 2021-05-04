@@ -96,7 +96,8 @@ impl Memory for Ram {
     fn poke_from_slice(&mut self, base: u32, data: &[u32]) -> Result<usize> {
         let mut addr = base;
         for word in data {
-            self.poke(addr, *word)?;
+            //self.poke(addr, *word)?;
+            self.memory.insert(addr, *word);
             addr += 4;
         }
 
