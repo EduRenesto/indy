@@ -232,9 +232,13 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                 Some(ref line) if line.tag == tag => {
                     let offset = (addr as usize / 4) % L;
                     debug!("cache {}: found at way {}", self.name, line_idx);
-                    print_debug!(self.reporter,
+                    print_debug!(
+                        self.reporter,
                         "{}: {:#010x} tag matched at line {:#010x} way {}",
-                        self.name, addr, line_number, i
+                        self.name,
+                        addr,
+                        line_number,
+                        i
                     );
                     return FindLine::Hit(LineIndex {
                         line_number,
@@ -396,7 +400,8 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
         print_debug!(
             self.reporter,
             "\tloading line {:#010x} from {:#010x}",
-            idx.line_number, base
+            idx.line_number,
+            base
         );
 
         //let tag = self.calc_tag(base);
@@ -591,7 +596,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
             match &sister.lines[line_idx] {
                 Some(ref line) if line.tag == idx.tag => {
                     // Achou na irmã!
-                    self.lines[idx.line_idx].replace(line.clone());
+                    self.lines[idx.line_idx].replace(*line);
                     return true;
                 }
                 _ => continue,
@@ -599,12 +604,6 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
         }
 
         false
-    }
-
-    fn print_to_debug(&self, text: String) {
-        if let Some(tx) = &self.reporter {
-            tx.send(MemoryEvent::Debug(text)).unwrap();
-        }
     }
 }
 

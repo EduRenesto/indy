@@ -18,7 +18,7 @@ use emulator::memory::{reporter::*, Cache, Memory, Ram, RepPolicy};
 use emulator::Cpu;
 use emulator::Instruction;
 
-const CONFIG_HELP: &'static str = "As configurações de memória podem ser as seguintes:
+const CONFIG_HELP: &str = "As configurações de memória podem ser as seguintes:
 (tabela copiada do `minips` de referência)
 
 |------|--------|-----------|-------------|--------|------------|-----------|
@@ -78,7 +78,12 @@ impl Executable {
     }
 }
 
-fn run_from_ram(ram: Ram, entry: u32, mem_cfg: &str, tx: Option<SyncSender<MemoryEvent>>) -> Result<()> {
+fn run_from_ram(
+    ram: Ram,
+    entry: u32,
+    mem_cfg: &str,
+    tx: Option<SyncSender<MemoryEvent>>,
+) -> Result<()> {
     match mem_cfg {
         "1" => {
             let ram = UnsafeCell::new(ram);
@@ -88,31 +93,31 @@ fn run_from_ram(ram: Ram, entry: u32, mem_cfg: &str, tx: Option<SyncSender<Memor
         "2" => {
             let ram = UnsafeCell::new(ram);
             let cache: UnsafeCell<Cache<_, 8, 32, 1>> = UnsafeCell::new(Cache::new(
-                    "L1",
-                    &ram,
-                    RepPolicy::Random,
-                    1,
-                    tx.as_ref().map(|tx| tx.clone()),
-                    ));
+                "L1",
+                &ram,
+                RepPolicy::Random,
+                1,
+                tx.as_ref().cloned(),
+            ));
             let mut cpu = Cpu::new(&cache, &cache, entry, 0x7FFFEFFC, 0x10008000);
             cpu.run()?;
         }
         "3" => {
             let ram = UnsafeCell::new(ram);
             let l1d: UnsafeCell<Cache<_, 8, 16, 1>> = UnsafeCell::new(Cache::new(
-                    "L1d",
-                    &ram,
-                    RepPolicy::Random,
-                    1,
-                    tx.as_ref().map(|tx| tx.clone()),
-                    ));
+                "L1d",
+                &ram,
+                RepPolicy::Random,
+                1,
+                tx.as_ref().cloned(),
+            ));
             let l1i: UnsafeCell<Cache<_, 8, 16, 1>> = UnsafeCell::new(Cache::new(
-                    "L1i",
-                    &ram,
-                    RepPolicy::Random,
-                    1,
-                    tx.as_ref().map(|tx| tx.clone()),
-                    ));
+                "L1i",
+                &ram,
+                RepPolicy::Random,
+                1,
+                tx.as_ref().cloned(),
+            ));
 
             unsafe {
                 (&mut *l1d.get()).set_sister(&l1i, true);
@@ -125,19 +130,19 @@ fn run_from_ram(ram: Ram, entry: u32, mem_cfg: &str, tx: Option<SyncSender<Memor
         "4" => {
             let ram = UnsafeCell::new(ram);
             let l1d: UnsafeCell<Cache<_, 8, 16, 1>> = UnsafeCell::new(Cache::new(
-                    "L1d",
-                    &ram,
-                    RepPolicy::LeastRecentlyUsed,
-                    1,
-                    tx.as_ref().map(|tx| tx.clone()),
-                    ));
+                "L1d",
+                &ram,
+                RepPolicy::LeastRecentlyUsed,
+                1,
+                tx.as_ref().cloned(),
+            ));
             let l1i: UnsafeCell<Cache<_, 8, 16, 1>> = UnsafeCell::new(Cache::new(
-                    "L1i",
-                    &ram,
-                    RepPolicy::LeastRecentlyUsed,
-                    1,
-                    tx.as_ref().map(|tx| tx.clone()),
-                    ));
+                "L1i",
+                &ram,
+                RepPolicy::LeastRecentlyUsed,
+                1,
+                tx.as_ref().cloned(),
+            ));
 
             unsafe {
                 (&mut *l1d.get()).set_sister(&l1i, true);
@@ -150,19 +155,19 @@ fn run_from_ram(ram: Ram, entry: u32, mem_cfg: &str, tx: Option<SyncSender<Memor
         "5" => {
             let ram = UnsafeCell::new(ram);
             let l1d: UnsafeCell<Cache<_, 8, 16, 4>> = UnsafeCell::new(Cache::new(
-                    "L1d",
-                    &ram,
-                    RepPolicy::LeastRecentlyUsed,
-                    1,
-                    tx.as_ref().map(|tx| tx.clone()),
-                    ));
+                "L1d",
+                &ram,
+                RepPolicy::LeastRecentlyUsed,
+                1,
+                tx.as_ref().cloned(),
+            ));
             let l1i: UnsafeCell<Cache<_, 8, 16, 4>> = UnsafeCell::new(Cache::new(
-                    "L1i",
-                    &ram,
-                    RepPolicy::LeastRecentlyUsed,
-                    1,
-                    tx.as_ref().map(|tx| tx.clone()),
-                    ));
+                "L1i",
+                &ram,
+                RepPolicy::LeastRecentlyUsed,
+                1,
+                tx.as_ref().cloned(),
+            ));
 
             unsafe {
                 (&mut *l1d.get()).set_sister(&l1i, true);
@@ -176,27 +181,27 @@ fn run_from_ram(ram: Ram, entry: u32, mem_cfg: &str, tx: Option<SyncSender<Memor
             let ram = UnsafeCell::new(ram);
 
             let l2: UnsafeCell<Cache<_, 16, 32, 8>> = UnsafeCell::new(Cache::new(
-                    "L2",
-                    &ram,
-                    RepPolicy::LeastRecentlyUsed,
-                    10,
-                    None,
-                    ));
+                "L2",
+                &ram,
+                RepPolicy::LeastRecentlyUsed,
+                10,
+                None,
+            ));
 
             let l1d: UnsafeCell<Cache<_, 16, 8, 4>> = UnsafeCell::new(Cache::new(
-                    "L1d",
-                    &l2,
-                    RepPolicy::LeastRecentlyUsed,
-                    1,
-                    tx.as_ref().map(|tx| tx.clone()),
-                    ));
+                "L1d",
+                &l2,
+                RepPolicy::LeastRecentlyUsed,
+                1,
+                tx.as_ref().cloned(),
+            ));
             let l1i: UnsafeCell<Cache<_, 16, 8, 4>> = UnsafeCell::new(Cache::new(
-                    "L1i",
-                    &l2,
-                    RepPolicy::LeastRecentlyUsed,
-                    1,
-                    tx.as_ref().map(|tx| tx.clone()),
-                    ));
+                "L1i",
+                &l2,
+                RepPolicy::LeastRecentlyUsed,
+                1,
+                tx.as_ref().cloned(),
+            ));
 
             unsafe {
                 (&mut *l1d.get()).set_sister(&l1i, true);
@@ -296,7 +301,6 @@ fn main() -> Result<()> {
                 .arg(Arg::with_name("file").required(true)),
         )
         .get_matches();
-
 
     if let Some(matches) = matches.subcommand_matches("decode") {
         // Desmonta o binário
