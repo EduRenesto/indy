@@ -205,10 +205,20 @@ fn main() -> Result<()> {
             }
             "4" => {
                 let ram = UnsafeCell::new(ram);
-                let l1d: UnsafeCell<Cache<_, 8, 16, 1>> =
-                    UnsafeCell::new(Cache::new("L1d", &ram, RepPolicy::LeastRecentlyUsed, 1, None));
-                let l1i: UnsafeCell<Cache<_, 8, 16, 1>> =
-                    UnsafeCell::new(Cache::new("L1i", &ram, RepPolicy::LeastRecentlyUsed, 1, None));
+                let l1d: UnsafeCell<Cache<_, 8, 16, 1>> = UnsafeCell::new(Cache::new(
+                    "L1d",
+                    &ram,
+                    RepPolicy::LeastRecentlyUsed,
+                    1,
+                    None,
+                ));
+                let l1i: UnsafeCell<Cache<_, 8, 16, 1>> = UnsafeCell::new(Cache::new(
+                    "L1i",
+                    &ram,
+                    RepPolicy::LeastRecentlyUsed,
+                    1,
+                    None,
+                ));
 
                 unsafe {
                     (&mut *l1d.get()).set_sister(&l1i, true);
@@ -220,10 +230,20 @@ fn main() -> Result<()> {
             }
             "5" => {
                 let ram = UnsafeCell::new(ram);
-                let l1d: UnsafeCell<Cache<_, 8, 16, 4>> =
-                    UnsafeCell::new(Cache::new("L1d", &ram, RepPolicy::LeastRecentlyUsed, 1, None));
-                let l1i: UnsafeCell<Cache<_, 8, 16, 4>> =
-                    UnsafeCell::new(Cache::new("L1i", &ram, RepPolicy::LeastRecentlyUsed, 1, None));
+                let l1d: UnsafeCell<Cache<_, 8, 16, 4>> = UnsafeCell::new(Cache::new(
+                    "L1d",
+                    &ram,
+                    RepPolicy::LeastRecentlyUsed,
+                    1,
+                    None,
+                ));
+                let l1i: UnsafeCell<Cache<_, 8, 16, 4>> = UnsafeCell::new(Cache::new(
+                    "L1i",
+                    &ram,
+                    RepPolicy::LeastRecentlyUsed,
+                    1,
+                    None,
+                ));
 
                 unsafe {
                     (&mut *l1d.get()).set_sister(&l1i, true);
@@ -236,13 +256,28 @@ fn main() -> Result<()> {
             "6" => {
                 let ram = UnsafeCell::new(ram);
 
-                let l2: UnsafeCell<Cache<_, 16, 32, 8>> =
-                    UnsafeCell::new(Cache::new("L2", &ram, RepPolicy::LeastRecentlyUsed, 10, None));
+                let l2: UnsafeCell<Cache<_, 16, 32, 8>> = UnsafeCell::new(Cache::new(
+                    "L2",
+                    &ram,
+                    RepPolicy::LeastRecentlyUsed,
+                    10,
+                    None,
+                ));
 
-                let l1d: UnsafeCell<Cache<_, 16, 8, 4>> =
-                    UnsafeCell::new(Cache::new("L1d", &l2, RepPolicy::LeastRecentlyUsed, 1, None));
-                let l1i: UnsafeCell<Cache<_, 16, 8, 4>> =
-                    UnsafeCell::new(Cache::new("L1i", &l2, RepPolicy::LeastRecentlyUsed, 1, None));
+                let l1d: UnsafeCell<Cache<_, 16, 8, 4>> = UnsafeCell::new(Cache::new(
+                    "L1d",
+                    &l2,
+                    RepPolicy::LeastRecentlyUsed,
+                    1,
+                    None,
+                ));
+                let l1i: UnsafeCell<Cache<_, 16, 8, 4>> = UnsafeCell::new(Cache::new(
+                    "L1i",
+                    &l2,
+                    RepPolicy::LeastRecentlyUsed,
+                    1,
+                    None,
+                ));
 
                 unsafe {
                     (&mut *l1d.get()).set_sister(&l1i, true);
@@ -303,10 +338,20 @@ fn main() -> Result<()> {
             }
             "3" => {
                 let ram = UnsafeCell::new(ram);
-                let l1d: UnsafeCell<Cache<_, 8, 16, 1>> =
-                    UnsafeCell::new(Cache::new("L1d", &ram, RepPolicy::Random, 1, Some(tx.clone())));
-                let l1i: UnsafeCell<Cache<_, 8, 16, 1>> =
-                    UnsafeCell::new(Cache::new("L1i", &ram, RepPolicy::Random, 1, Some(tx.clone())));
+                let l1d: UnsafeCell<Cache<_, 8, 16, 1>> = UnsafeCell::new(Cache::new(
+                    "L1d",
+                    &ram,
+                    RepPolicy::Random,
+                    1,
+                    Some(tx.clone()),
+                ));
+                let l1i: UnsafeCell<Cache<_, 8, 16, 1>> = UnsafeCell::new(Cache::new(
+                    "L1i",
+                    &ram,
+                    RepPolicy::Random,
+                    1,
+                    Some(tx.clone()),
+                ));
 
                 unsafe {
                     (&mut *l1d.get()).set_sister(&l1i, true);
@@ -318,10 +363,20 @@ fn main() -> Result<()> {
             }
             "4" => {
                 let ram = UnsafeCell::new(ram);
-                let l1d: UnsafeCell<Cache<_, 8, 16, 1>> =
-                    UnsafeCell::new(Cache::new("L1d", &ram, RepPolicy::LeastRecentlyUsed, 1, Some(tx.clone())));
-                let l1i: UnsafeCell<Cache<_, 8, 16, 1>> =
-                    UnsafeCell::new(Cache::new("L1i", &ram, RepPolicy::LeastRecentlyUsed, 1, Some(tx.clone())));
+                let l1d: UnsafeCell<Cache<_, 8, 16, 1>> = UnsafeCell::new(Cache::new(
+                    "L1d",
+                    &ram,
+                    RepPolicy::LeastRecentlyUsed,
+                    1,
+                    Some(tx.clone()),
+                ));
+                let l1i: UnsafeCell<Cache<_, 8, 16, 1>> = UnsafeCell::new(Cache::new(
+                    "L1i",
+                    &ram,
+                    RepPolicy::LeastRecentlyUsed,
+                    1,
+                    Some(tx.clone()),
+                ));
 
                 unsafe {
                     (&mut *l1d.get()).set_sister(&l1i, true);
@@ -333,10 +388,20 @@ fn main() -> Result<()> {
             }
             "5" => {
                 let ram = UnsafeCell::new(ram);
-                let l1d: UnsafeCell<Cache<_, 8, 16, 4>> =
-                    UnsafeCell::new(Cache::new("L1d", &ram, RepPolicy::LeastRecentlyUsed, 1, Some(tx.clone())));
-                let l1i: UnsafeCell<Cache<_, 8, 16, 4>> =
-                    UnsafeCell::new(Cache::new("L1i", &ram, RepPolicy::LeastRecentlyUsed, 1, Some(tx.clone())));
+                let l1d: UnsafeCell<Cache<_, 8, 16, 4>> = UnsafeCell::new(Cache::new(
+                    "L1d",
+                    &ram,
+                    RepPolicy::LeastRecentlyUsed,
+                    1,
+                    Some(tx.clone()),
+                ));
+                let l1i: UnsafeCell<Cache<_, 8, 16, 4>> = UnsafeCell::new(Cache::new(
+                    "L1i",
+                    &ram,
+                    RepPolicy::LeastRecentlyUsed,
+                    1,
+                    Some(tx.clone()),
+                ));
 
                 unsafe {
                     (&mut *l1d.get()).set_sister(&l1i, true);
@@ -349,13 +414,28 @@ fn main() -> Result<()> {
             "6" => {
                 let ram = UnsafeCell::new(ram);
 
-                let l2: UnsafeCell<Cache<_, 16, 32, 8>> =
-                    UnsafeCell::new(Cache::new("L2", &ram, RepPolicy::LeastRecentlyUsed, 10, None));
+                let l2: UnsafeCell<Cache<_, 16, 32, 8>> = UnsafeCell::new(Cache::new(
+                    "L2",
+                    &ram,
+                    RepPolicy::LeastRecentlyUsed,
+                    10,
+                    None,
+                ));
 
-                let l1d: UnsafeCell<Cache<_, 16, 8, 4>> =
-                    UnsafeCell::new(Cache::new("L1d", &l2, RepPolicy::LeastRecentlyUsed, 1, Some(tx.clone())));
-                let l1i: UnsafeCell<Cache<_, 16, 8, 4>> =
-                    UnsafeCell::new(Cache::new("L1i", &l2, RepPolicy::LeastRecentlyUsed, 1, Some(tx.clone())));
+                let l1d: UnsafeCell<Cache<_, 16, 8, 4>> = UnsafeCell::new(Cache::new(
+                    "L1d",
+                    &l2,
+                    RepPolicy::LeastRecentlyUsed,
+                    1,
+                    Some(tx.clone()),
+                ));
+                let l1i: UnsafeCell<Cache<_, 16, 8, 4>> = UnsafeCell::new(Cache::new(
+                    "L1i",
+                    &l2,
+                    RepPolicy::LeastRecentlyUsed,
+                    1,
+                    Some(tx.clone()),
+                ));
 
                 unsafe {
                     (&mut *l1d.get()).set_sister(&l1i, true);
@@ -415,10 +495,20 @@ fn main() -> Result<()> {
             }
             "3" => {
                 let ram = UnsafeCell::new(ram);
-                let l1d: UnsafeCell<Cache<_, 8, 16, 1>> =
-                    UnsafeCell::new(Cache::new("L1d", &ram, RepPolicy::Random, 1, Some(tx.clone())));
-                let l1i: UnsafeCell<Cache<_, 8, 16, 1>> =
-                    UnsafeCell::new(Cache::new("L1i", &ram, RepPolicy::Random, 1, Some(tx.clone())));
+                let l1d: UnsafeCell<Cache<_, 8, 16, 1>> = UnsafeCell::new(Cache::new(
+                    "L1d",
+                    &ram,
+                    RepPolicy::Random,
+                    1,
+                    Some(tx.clone()),
+                ));
+                let l1i: UnsafeCell<Cache<_, 8, 16, 1>> = UnsafeCell::new(Cache::new(
+                    "L1i",
+                    &ram,
+                    RepPolicy::Random,
+                    1,
+                    Some(tx.clone()),
+                ));
 
                 unsafe {
                     (&mut *l1d.get()).set_sister(&l1i, true);
@@ -430,10 +520,20 @@ fn main() -> Result<()> {
             }
             "4" => {
                 let ram = UnsafeCell::new(ram);
-                let l1d: UnsafeCell<Cache<_, 8, 16, 1>> =
-                    UnsafeCell::new(Cache::new("L1d", &ram, RepPolicy::LeastRecentlyUsed, 1, Some(tx.clone())));
-                let l1i: UnsafeCell<Cache<_, 8, 16, 1>> =
-                    UnsafeCell::new(Cache::new("L1i", &ram, RepPolicy::LeastRecentlyUsed, 1, Some(tx.clone())));
+                let l1d: UnsafeCell<Cache<_, 8, 16, 1>> = UnsafeCell::new(Cache::new(
+                    "L1d",
+                    &ram,
+                    RepPolicy::LeastRecentlyUsed,
+                    1,
+                    Some(tx.clone()),
+                ));
+                let l1i: UnsafeCell<Cache<_, 8, 16, 1>> = UnsafeCell::new(Cache::new(
+                    "L1i",
+                    &ram,
+                    RepPolicy::LeastRecentlyUsed,
+                    1,
+                    Some(tx.clone()),
+                ));
 
                 unsafe {
                     (&mut *l1d.get()).set_sister(&l1i, true);
@@ -445,10 +545,20 @@ fn main() -> Result<()> {
             }
             "5" => {
                 let ram = UnsafeCell::new(ram);
-                let l1d: UnsafeCell<Cache<_, 8, 16, 4>> =
-                    UnsafeCell::new(Cache::new("L1d", &ram, RepPolicy::LeastRecentlyUsed, 1, Some(tx.clone())));
-                let l1i: UnsafeCell<Cache<_, 8, 16, 4>> =
-                    UnsafeCell::new(Cache::new("L1i", &ram, RepPolicy::LeastRecentlyUsed, 1, Some(tx.clone())));
+                let l1d: UnsafeCell<Cache<_, 8, 16, 4>> = UnsafeCell::new(Cache::new(
+                    "L1d",
+                    &ram,
+                    RepPolicy::LeastRecentlyUsed,
+                    1,
+                    Some(tx.clone()),
+                ));
+                let l1i: UnsafeCell<Cache<_, 8, 16, 4>> = UnsafeCell::new(Cache::new(
+                    "L1i",
+                    &ram,
+                    RepPolicy::LeastRecentlyUsed,
+                    1,
+                    Some(tx.clone()),
+                ));
 
                 unsafe {
                     (&mut *l1d.get()).set_sister(&l1i, true);
@@ -461,13 +571,28 @@ fn main() -> Result<()> {
             "6" => {
                 let ram = UnsafeCell::new(ram);
 
-                let l2: UnsafeCell<Cache<_, 16, 32, 8>> =
-                    UnsafeCell::new(Cache::new("L2", &ram, RepPolicy::LeastRecentlyUsed, 10, None));
+                let l2: UnsafeCell<Cache<_, 16, 32, 8>> = UnsafeCell::new(Cache::new(
+                    "L2",
+                    &ram,
+                    RepPolicy::LeastRecentlyUsed,
+                    10,
+                    None,
+                ));
 
-                let l1d: UnsafeCell<Cache<_, 16, 8, 4>> =
-                    UnsafeCell::new(Cache::new("L1d", &l2, RepPolicy::LeastRecentlyUsed, 1, Some(tx.clone())));
-                let l1i: UnsafeCell<Cache<_, 16, 8, 4>> =
-                    UnsafeCell::new(Cache::new("L1i", &l2, RepPolicy::LeastRecentlyUsed, 1, Some(tx.clone())));
+                let l1d: UnsafeCell<Cache<_, 16, 8, 4>> = UnsafeCell::new(Cache::new(
+                    "L1d",
+                    &l2,
+                    RepPolicy::LeastRecentlyUsed,
+                    1,
+                    Some(tx.clone()),
+                ));
+                let l1i: UnsafeCell<Cache<_, 16, 8, 4>> = UnsafeCell::new(Cache::new(
+                    "L1i",
+                    &l2,
+                    RepPolicy::LeastRecentlyUsed,
+                    1,
+                    Some(tx.clone()),
+                ));
 
                 unsafe {
                     (&mut *l1d.get()).set_sister(&l1i, true);

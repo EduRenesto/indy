@@ -274,8 +274,6 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
                         let mut byte_offset = addr % 4;
                         addr = addr - byte_offset;
 
-                        let mut total_cycles = 0;
-
                         'outer: loop {
                             let (val, cycles) = self.mem.peek(addr)?;
                             let val = val.to_le_bytes();
@@ -297,8 +295,6 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
                             addr += 4;
                             byte_offset = 0;
                         }
-
-                        self.stats.add_cycles(total_cycles);
                     }
                     5 => {
                         let mut input = String::new();

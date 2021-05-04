@@ -71,7 +71,7 @@ impl Memory for Ram {
         self.accesses += 1;
 
         for i in 0..target.len() {
-            let target_addr = addr + 4*i as u32;
+            let target_addr = addr + 4 * i as u32;
             target[i] = *self.memory.get(&target_addr).unwrap_or(&0);
             debug!("ram: target[{}] <- {:#010x}", i, target_addr);
         }

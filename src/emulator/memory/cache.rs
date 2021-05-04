@@ -188,18 +188,6 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
         self.fetch_from_sister = fetch;
     }
 
-    /// Calcula só a tag de um endereço.
-    fn calc_tag(&self, addr: u32) -> usize {
-        let set_size = A;
-        let n_sets = N / set_size;
-        let n_sets_bits = log2_lut(n_sets);
-
-        let line_number = addr as usize / (L * 32);
-        let tag = line_number >> n_sets_bits;
-
-        tag
-    }
-
     /// Acha a linha em que o endereço está.
     fn find_line(&mut self, addr: u32) -> FindLine {
         //let set_size = (32 * L * A);
@@ -219,7 +207,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
         //    self.name, line_number
         //);
         let set_idx = line_number & ((n_sets).next_power_of_two() - 1); // Isso só funciona com potências de 2!!!!!
-        //debug!("cache {}: |=> set_idx     = {:#034b}", self.name, set_idx);
+                                                                        //debug!("cache {}: |=> set_idx     = {:#034b}", self.name, set_idx);
         let tag = line_number >> n_sets_bits;
         //debug!("cache {}: |=> tag         = {:#034b}", self.name, tag);
 
@@ -234,8 +222,10 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                 Some(ref line) if line.tag == tag => {
                     let offset = (addr as usize / 4) % L;
                     debug!("cache {}: found at way {}", self.name, line_idx);
-                    self.print_to_debug(format!("{}: {:#010x} tag matched at line {:#010x} way {}", 
-                                        self.name, addr, line_number, i));
+                    self.print_to_debug(format!(
+                        "{}: {:#010x} tag matched at line {:#010x} way {}",
+                        self.name, addr, line_number, i
+                    ));
                     return FindLine::Hit(LineIndex {
                         line_number,
                         set_idx,
@@ -281,16 +271,20 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                         let line_idx = set_idx * set_size + i;
 
                         match self.lines[line_idx] {
-                            Some(ref line) => { 
-                                debug!("cache {}: age of line {:#010x} way {}: {}",
-                                       self.name, line_number, i, line.last_access);
+                            Some(ref line) => {
+                                debug!(
+                                    "cache {}: age of line {:#010x} way {}: {}",
+                                    self.name, line_number, i, line.last_access
+                                );
                                 (line.last_access, line_idx, i)
-                            },
-                            None => { 
-                                debug!("cache {}: age of line {:#010x} way {}: 0",
-                                       self.name, line_number, i);
-                                (0, line_idx, i) 
-                            },
+                            }
+                            None => {
+                                debug!(
+                                    "cache {}: age of line {:#010x} way {}: 0",
+                                    self.name, line_number, i
+                                );
+                                (0, line_idx, i)
+                            }
                         }
                     })
                     .min()
@@ -334,7 +328,8 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
 
                 if let Some(sister) = self.sister {
                     unsafe {
-                        (&mut *sister.get()).invalidate_line(idx.to_addr::<L>()); // TODO usar line_number
+                        (&mut *sister.get()).invalidate_line(idx.to_addr::<L>());
+                        // TODO usar line_number
                     }
                 }
 
@@ -354,7 +349,8 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                     //    }
                     //}
 
-                    total_cycles += (&mut *self.next.get()).poke_from_slice(base, &line.data[..])?;
+                    total_cycles +=
+                        (&mut *self.next.get()).poke_from_slice(base, &line.data[..])?;
 
                     total_cycles
                 };
@@ -366,7 +362,10 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                     "cache {}: no need to write back line {:#010x}",
                     self.name, idx.line_number
                 );
-                self.print_to_debug(format!("\tno need to write back line {:#010x}", idx.line_number));
+                self.print_to_debug(format!(
+                    "\tno need to write back line {:#010x}",
+                    idx.line_number
+                ));
                 Ok(0)
             }
         }
@@ -383,7 +382,10 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
             self.name, base, idx.line_number, idx.line_idx,
         );
 
-        self.print_to_debug(format!("\tloading line {:#010x} from {:#010x}", idx.line_number, base));
+        self.print_to_debug(format!(
+            "\tloading line {:#010x} from {:#010x}",
+            idx.line_number, base
+        ));
 
         //let tag = self.calc_tag(base);
 
@@ -478,8 +480,10 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
 
                 if self.try_copy_from_sister(&idx) {
                     self.print_to_debug(format!("\tfound in sister, copying"));
-                    debug!("cache {}: line {:#010x} found in sister, copying...", self.name,
-                           idx.line_number);
+                    debug!(
+                        "cache {}: line {:#010x} found in sister, copying...",
+                        self.name, idx.line_number
+                    );
                     let mut line = self.lines[idx.line_idx].as_mut().unwrap();
                     line.last_access = self.accesses;
                     Ok((idx, line.data[idx.offset], self.latency))
@@ -511,8 +515,10 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
 
                 if self.try_copy_from_sister(&idx) {
                     self.print_to_debug(format!("\tfound in sister, copying"));
-                    debug!("cache {}: line {:#010x} found in sister, copying...", self.name,
-                           idx.line_number);
+                    debug!(
+                        "cache {}: line {:#010x} found in sister, copying...",
+                        self.name, idx.line_number
+                    );
                     let mut line = self.lines[idx.line_idx].as_mut().unwrap();
                     line.last_access = self.accesses;
                     Ok((idx, line.data[idx.offset], self.latency))
@@ -551,7 +557,10 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
     /// Invalida a linha da cache que contém esse endereço.
     fn invalidate_line(&mut self, addr: u32) {
         if let FindLine::Hit(idx) = self.find_line(addr) {
-            debug!("cache {}: invalidating line {:#010x}", self.name, idx.line_number);
+            debug!(
+                "cache {}: invalidating line {:#010x}",
+                self.name, idx.line_number
+            );
             self.lines[idx.line_idx].as_mut().unwrap().valid = false;
         }
     }
@@ -563,9 +572,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
             return false;
         }
 
-        let sister = unsafe {
-            &*self.sister.unwrap().get()
-        };
+        let sister = unsafe { &*self.sister.unwrap().get() };
 
         for i in 0..A {
             let line_idx = idx.set_idx * A + i;
@@ -631,7 +638,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
                 let line = self.lines[idx.line_idx].as_mut().unwrap();
                 line.last_access = self.accesses;
 
-                let range = (idx.offset)..(idx.offset+target.len());
+                let range = (idx.offset)..(idx.offset + target.len());
                 target.copy_from_slice(&line.data[range]);
 
                 Ok(self.latency)
@@ -654,12 +661,14 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
 
                 if self.try_copy_from_sister(&idx) {
                     self.print_to_debug(format!("\tfound in sister, copying"));
-                    debug!("cache {}: line {:#010x} found in sister, copying...", self.name,
-                           idx.line_number);
+                    debug!(
+                        "cache {}: line {:#010x} found in sister, copying...",
+                        self.name, idx.line_number
+                    );
                     let mut line = self.lines[idx.line_idx].as_mut().unwrap();
                     line.last_access = self.accesses;
 
-                    let range = (idx.offset)..(idx.offset+target.len());
+                    let range = (idx.offset)..(idx.offset + target.len());
                     target.copy_from_slice(&line.data[range]);
 
                     Ok(self.latency)
@@ -679,7 +688,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
                     let mut line = self.lines[idx.line_idx].as_mut().unwrap();
                     line.last_access = self.accesses;
 
-                    let range = (idx.offset)..(idx.offset+target.len());
+                    let range = (idx.offset)..(idx.offset + target.len());
                     target.copy_from_slice(&line.data[range]);
 
                     Ok(self.latency + cycles)
@@ -694,12 +703,14 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
 
                 if self.try_copy_from_sister(&idx) {
                     self.print_to_debug(format!("\tfound in sister, copying"));
-                    debug!("cache {}: line {:#010x} found in sister, copying...", self.name,
-                           idx.line_number);
+                    debug!(
+                        "cache {}: line {:#010x} found in sister, copying...",
+                        self.name, idx.line_number
+                    );
                     let mut line = self.lines[idx.line_idx].as_mut().unwrap();
                     line.last_access = self.accesses;
 
-                    let range = (idx.offset)..(idx.offset+target.len());
+                    let range = (idx.offset)..(idx.offset + target.len());
                     target.copy_from_slice(&line.data[range]);
 
                     Ok(self.latency)
@@ -719,7 +730,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
                     let mut line = self.lines[idx.line_idx].as_mut().unwrap();
                     line.last_access = self.accesses;
 
-                    let range = (idx.offset)..(idx.offset+target.len());
+                    let range = (idx.offset)..(idx.offset + target.len());
                     target.copy_from_slice(&line.data[range]);
 
                     Ok(self.latency + cycles)
@@ -882,7 +893,11 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
 
         println!(
             "{:>5}  {:>12}  {:>12}  {:>12}   {:>8.2}%",
-            self.name, hits, self.misses, self.accesses, miss_rate * 100.0,
+            self.name,
+            hits,
+            self.misses,
+            self.accesses,
+            miss_rate * 100.0,
         );
 
         if recurse {

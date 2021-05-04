@@ -3,7 +3,6 @@ use std::time::Instant;
 use crate::emulator::Instruction;
 
 use color_eyre::eyre::{eyre, Result};
-use log::debug;
 
 pub struct StatsReporter {
     n_instructions: [usize; 5],
