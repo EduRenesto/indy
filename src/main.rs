@@ -10,6 +10,7 @@ use goblin::elf::Elf;
 use std::cell::UnsafeCell;
 use std::fs::File;
 use std::io::Read;
+use std::sync::mpsc::SyncSender;
 
 pub(crate) mod emulator;
 
@@ -52,6 +53,139 @@ impl Executable {
 
         Ok(Executable { text, data, rodata })
     }
+}
+
+fn run_from_ram(ram: Ram, entry: u32, mem_cfg: &str, tx: Option<SyncSender<MemoryEvent>>) -> Result<()> {
+    match mem_cfg {
+        "1" => {
+            let ram = UnsafeCell::new(ram);
+            let mut cpu = Cpu::new(&ram, &ram, entry, 0x7FFFEFFC, 0x10008000);
+            cpu.run()?;
+        }
+        "2" => {
+            let ram = UnsafeCell::new(ram);
+            let cache: UnsafeCell<Cache<_, 8, 32, 1>> = UnsafeCell::new(Cache::new(
+                    "L1",
+                    &ram,
+                    RepPolicy::Random,
+                    1,
+                    tx.as_ref().map(|tx| tx.clone()),
+                    ));
+            let mut cpu = Cpu::new(&cache, &cache, entry, 0x7FFFEFFC, 0x10008000);
+            cpu.run()?;
+        }
+        "3" => {
+            let ram = UnsafeCell::new(ram);
+            let l1d: UnsafeCell<Cache<_, 8, 16, 1>> = UnsafeCell::new(Cache::new(
+                    "L1d",
+                    &ram,
+                    RepPolicy::Random,
+                    1,
+                    tx.as_ref().map(|tx| tx.clone()),
+                    ));
+            let l1i: UnsafeCell<Cache<_, 8, 16, 1>> = UnsafeCell::new(Cache::new(
+                    "L1i",
+                    &ram,
+                    RepPolicy::Random,
+                    1,
+                    tx.as_ref().map(|tx| tx.clone()),
+                    ));
+
+            unsafe {
+                (&mut *l1d.get()).set_sister(&l1i, true);
+                (&mut *l1i.get()).set_sister(&l1d, true);
+            }
+
+            let mut cpu = Cpu::new(&l1d, &l1i, entry, 0x7FFFEFFC, 0x10008000);
+            cpu.run()?;
+        }
+        "4" => {
+            let ram = UnsafeCell::new(ram);
+            let l1d: UnsafeCell<Cache<_, 8, 16, 1>> = UnsafeCell::new(Cache::new(
+                    "L1d",
+                    &ram,
+                    RepPolicy::LeastRecentlyUsed,
+                    1,
+                    tx.as_ref().map(|tx| tx.clone()),
+                    ));
+            let l1i: UnsafeCell<Cache<_, 8, 16, 1>> = UnsafeCell::new(Cache::new(
+                    "L1i",
+                    &ram,
+                    RepPolicy::LeastRecentlyUsed,
+                    1,
+                    tx.as_ref().map(|tx| tx.clone()),
+                    ));
+
+            unsafe {
+                (&mut *l1d.get()).set_sister(&l1i, true);
+                (&mut *l1i.get()).set_sister(&l1d, true);
+            }
+
+            let mut cpu = Cpu::new(&l1d, &l1i, entry, 0x7FFFEFFC, 0x10008000);
+            cpu.run()?;
+        }
+        "5" => {
+            let ram = UnsafeCell::new(ram);
+            let l1d: UnsafeCell<Cache<_, 8, 16, 4>> = UnsafeCell::new(Cache::new(
+                    "L1d",
+                    &ram,
+                    RepPolicy::LeastRecentlyUsed,
+                    1,
+                    tx.as_ref().map(|tx| tx.clone()),
+                    ));
+            let l1i: UnsafeCell<Cache<_, 8, 16, 4>> = UnsafeCell::new(Cache::new(
+                    "L1i",
+                    &ram,
+                    RepPolicy::LeastRecentlyUsed,
+                    1,
+                    tx.as_ref().map(|tx| tx.clone()),
+                    ));
+
+            unsafe {
+                (&mut *l1d.get()).set_sister(&l1i, true);
+                (&mut *l1i.get()).set_sister(&l1d, true);
+            }
+
+            let mut cpu = Cpu::new(&l1d, &l1i, entry, 0x7FFFEFFC, 0x10008000);
+            cpu.run()?;
+        }
+        "6" => {
+            let ram = UnsafeCell::new(ram);
+
+            let l2: UnsafeCell<Cache<_, 16, 32, 8>> = UnsafeCell::new(Cache::new(
+                    "L2",
+                    &ram,
+                    RepPolicy::LeastRecentlyUsed,
+                    10,
+                    None,
+                    ));
+
+            let l1d: UnsafeCell<Cache<_, 16, 8, 4>> = UnsafeCell::new(Cache::new(
+                    "L1d",
+                    &l2,
+                    RepPolicy::LeastRecentlyUsed,
+                    1,
+                    tx.as_ref().map(|tx| tx.clone()),
+                    ));
+            let l1i: UnsafeCell<Cache<_, 16, 8, 4>> = UnsafeCell::new(Cache::new(
+                    "L1i",
+                    &l2,
+                    RepPolicy::LeastRecentlyUsed,
+                    1,
+                    tx.as_ref().map(|tx| tx.clone()),
+                    ));
+
+            unsafe {
+                (&mut *l1d.get()).set_sister(&l1i, true);
+                (&mut *l1i.get()).set_sister(&l1d, true);
+            }
+
+            let mut cpu = Cpu::new(&l1d, &l1i, entry, 0x7FFFEFFC, 0x10008000);
+            cpu.run()?;
+        }
+        c => return Err(eyre!("Configuração de memória {} não conhecida!", c)),
+    };
+    Ok(())
 }
 
 fn main() -> Result<()> {
@@ -175,124 +309,7 @@ fn main() -> Result<()> {
 
         ram.reset_stats();
 
-        match mem_cfg {
-            "1" => {
-                let ram = UnsafeCell::new(ram);
-                let mut cpu = Cpu::new(&ram, &ram, entry, 0x7FFFEFFC, 0x10008000);
-                cpu.run()?;
-            }
-            "2" => {
-                let ram = UnsafeCell::new(ram);
-                let cache: UnsafeCell<Cache<_, 8, 32, 1>> =
-                    UnsafeCell::new(Cache::new("L1", &ram, RepPolicy::Random, 1, None));
-                let mut cpu = Cpu::new(&cache, &cache, entry, 0x7FFFEFFC, 0x10008000);
-                cpu.run()?;
-            }
-            "3" => {
-                let ram = UnsafeCell::new(ram);
-                let l1d: UnsafeCell<Cache<_, 8, 16, 1>> =
-                    UnsafeCell::new(Cache::new("L1d", &ram, RepPolicy::Random, 1, None));
-                let l1i: UnsafeCell<Cache<_, 8, 16, 1>> =
-                    UnsafeCell::new(Cache::new("L1i", &ram, RepPolicy::Random, 1, None));
-
-                unsafe {
-                    (&mut *l1d.get()).set_sister(&l1i, true);
-                    (&mut *l1i.get()).set_sister(&l1d, true);
-                }
-
-                let mut cpu = Cpu::new(&l1d, &l1i, entry, 0x7FFFEFFC, 0x10008000);
-                cpu.run()?;
-            }
-            "4" => {
-                let ram = UnsafeCell::new(ram);
-                let l1d: UnsafeCell<Cache<_, 8, 16, 1>> = UnsafeCell::new(Cache::new(
-                    "L1d",
-                    &ram,
-                    RepPolicy::LeastRecentlyUsed,
-                    1,
-                    None,
-                ));
-                let l1i: UnsafeCell<Cache<_, 8, 16, 1>> = UnsafeCell::new(Cache::new(
-                    "L1i",
-                    &ram,
-                    RepPolicy::LeastRecentlyUsed,
-                    1,
-                    None,
-                ));
-
-                unsafe {
-                    (&mut *l1d.get()).set_sister(&l1i, true);
-                    (&mut *l1i.get()).set_sister(&l1d, true);
-                }
-
-                let mut cpu = Cpu::new(&l1d, &l1i, entry, 0x7FFFEFFC, 0x10008000);
-                cpu.run()?;
-            }
-            "5" => {
-                let ram = UnsafeCell::new(ram);
-                let l1d: UnsafeCell<Cache<_, 8, 16, 4>> = UnsafeCell::new(Cache::new(
-                    "L1d",
-                    &ram,
-                    RepPolicy::LeastRecentlyUsed,
-                    1,
-                    None,
-                ));
-                let l1i: UnsafeCell<Cache<_, 8, 16, 4>> = UnsafeCell::new(Cache::new(
-                    "L1i",
-                    &ram,
-                    RepPolicy::LeastRecentlyUsed,
-                    1,
-                    None,
-                ));
-
-                unsafe {
-                    (&mut *l1d.get()).set_sister(&l1i, true);
-                    (&mut *l1i.get()).set_sister(&l1d, true);
-                }
-
-                let mut cpu = Cpu::new(&l1d, &l1i, entry, 0x7FFFEFFC, 0x10008000);
-                cpu.run()?;
-            }
-            "6" => {
-                let ram = UnsafeCell::new(ram);
-
-                let l2: UnsafeCell<Cache<_, 16, 32, 8>> = UnsafeCell::new(Cache::new(
-                    "L2",
-                    &ram,
-                    RepPolicy::LeastRecentlyUsed,
-                    10,
-                    None,
-                ));
-
-                let l1d: UnsafeCell<Cache<_, 16, 8, 4>> = UnsafeCell::new(Cache::new(
-                    "L1d",
-                    &l2,
-                    RepPolicy::LeastRecentlyUsed,
-                    1,
-                    None,
-                ));
-                let l1i: UnsafeCell<Cache<_, 16, 8, 4>> = UnsafeCell::new(Cache::new(
-                    "L1i",
-                    &l2,
-                    RepPolicy::LeastRecentlyUsed,
-                    1,
-                    None,
-                ));
-
-                unsafe {
-                    (&mut *l1d.get()).set_sister(&l1i, true);
-                    (&mut *l1i.get()).set_sister(&l1d, true);
-                }
-
-                let mut cpu = Cpu::new(&l1d, &l1i, entry, 0x7FFFEFFC, 0x10008000);
-                cpu.run()?;
-            }
-            c => return Err(eyre!("Configuração de memória {} não conhecida!", c)),
-        };
-
-        //let cache: Cache<_, 8, 1024, 2> = Cache::new("L1", &ram, RepPolicy::Random, 1);
-
-        //let mut cpu = Cpu::new(cache, entry, 0x7FFFEFFC, 0x10008000);
+        run_from_ram(ram, entry, mem_cfg, None)?;
 
         Ok(())
     } else if let Some(matches) = matches.subcommand_matches("trace") {
@@ -318,135 +335,7 @@ fn main() -> Result<()> {
         let out_file = File::create(out_file)?;
         let (rep_thread, tx) = MemoryReporter::new(out_file, false);
 
-        match mem_cfg {
-            "1" => {
-                let ram = UnsafeCell::new(ram);
-                let mut cpu = Cpu::new(&ram, &ram, entry, 0x7FFFEFFC, 0x10008000);
-                cpu.run()?;
-            }
-            "2" => {
-                let ram = UnsafeCell::new(ram);
-                let cache: UnsafeCell<Cache<_, 8, 32, 1>> = UnsafeCell::new(Cache::new(
-                    "L1",
-                    &ram,
-                    RepPolicy::Random,
-                    1,
-                    Some(tx.clone()),
-                ));
-                let mut cpu = Cpu::new(&cache, &cache, entry, 0x7FFFEFFC, 0x10008000);
-                cpu.run()?;
-            }
-            "3" => {
-                let ram = UnsafeCell::new(ram);
-                let l1d: UnsafeCell<Cache<_, 8, 16, 1>> = UnsafeCell::new(Cache::new(
-                    "L1d",
-                    &ram,
-                    RepPolicy::Random,
-                    1,
-                    Some(tx.clone()),
-                ));
-                let l1i: UnsafeCell<Cache<_, 8, 16, 1>> = UnsafeCell::new(Cache::new(
-                    "L1i",
-                    &ram,
-                    RepPolicy::Random,
-                    1,
-                    Some(tx.clone()),
-                ));
-
-                unsafe {
-                    (&mut *l1d.get()).set_sister(&l1i, true);
-                    (&mut *l1i.get()).set_sister(&l1d, true);
-                }
-
-                let mut cpu = Cpu::new(&l1d, &l1i, entry, 0x7FFFEFFC, 0x10008000);
-                cpu.run()?;
-            }
-            "4" => {
-                let ram = UnsafeCell::new(ram);
-                let l1d: UnsafeCell<Cache<_, 8, 16, 1>> = UnsafeCell::new(Cache::new(
-                    "L1d",
-                    &ram,
-                    RepPolicy::LeastRecentlyUsed,
-                    1,
-                    Some(tx.clone()),
-                ));
-                let l1i: UnsafeCell<Cache<_, 8, 16, 1>> = UnsafeCell::new(Cache::new(
-                    "L1i",
-                    &ram,
-                    RepPolicy::LeastRecentlyUsed,
-                    1,
-                    Some(tx.clone()),
-                ));
-
-                unsafe {
-                    (&mut *l1d.get()).set_sister(&l1i, true);
-                    (&mut *l1i.get()).set_sister(&l1d, true);
-                }
-
-                let mut cpu = Cpu::new(&l1d, &l1i, entry, 0x7FFFEFFC, 0x10008000);
-                cpu.run()?;
-            }
-            "5" => {
-                let ram = UnsafeCell::new(ram);
-                let l1d: UnsafeCell<Cache<_, 8, 16, 4>> = UnsafeCell::new(Cache::new(
-                    "L1d",
-                    &ram,
-                    RepPolicy::LeastRecentlyUsed,
-                    1,
-                    Some(tx.clone()),
-                ));
-                let l1i: UnsafeCell<Cache<_, 8, 16, 4>> = UnsafeCell::new(Cache::new(
-                    "L1i",
-                    &ram,
-                    RepPolicy::LeastRecentlyUsed,
-                    1,
-                    Some(tx.clone()),
-                ));
-
-                unsafe {
-                    (&mut *l1d.get()).set_sister(&l1i, true);
-                    (&mut *l1i.get()).set_sister(&l1d, true);
-                }
-
-                let mut cpu = Cpu::new(&l1d, &l1i, entry, 0x7FFFEFFC, 0x10008000);
-                cpu.run()?;
-            }
-            "6" => {
-                let ram = UnsafeCell::new(ram);
-
-                let l2: UnsafeCell<Cache<_, 16, 32, 8>> = UnsafeCell::new(Cache::new(
-                    "L2",
-                    &ram,
-                    RepPolicy::LeastRecentlyUsed,
-                    10,
-                    None,
-                ));
-
-                let l1d: UnsafeCell<Cache<_, 16, 8, 4>> = UnsafeCell::new(Cache::new(
-                    "L1d",
-                    &l2,
-                    RepPolicy::LeastRecentlyUsed,
-                    1,
-                    Some(tx.clone()),
-                ));
-                let l1i: UnsafeCell<Cache<_, 16, 8, 4>> = UnsafeCell::new(Cache::new(
-                    "L1i",
-                    &l2,
-                    RepPolicy::LeastRecentlyUsed,
-                    1,
-                    Some(tx.clone()),
-                ));
-
-                unsafe {
-                    (&mut *l1d.get()).set_sister(&l1i, true);
-                    (&mut *l1i.get()).set_sister(&l1d, true);
-                }
-
-                let mut cpu = Cpu::new(&l1d, &l1i, entry, 0x7FFFEFFC, 0x10008000);
-                cpu.run()?;
-            }
-            c => return Err(eyre!("Configuração de memória {} não conhecida!", c)),
-        };
+        run_from_ram(ram, entry, mem_cfg, Some(tx.clone()))?;
 
         tx.send(MemoryEvent::Finish).unwrap();
         rep_thread.join().unwrap();
@@ -475,135 +364,7 @@ fn main() -> Result<()> {
         let out_file = File::create(out_file)?;
         let (rep_thread, tx) = MemoryReporter::new(out_file, true);
 
-        match mem_cfg {
-            "1" => {
-                let ram = UnsafeCell::new(ram);
-                let mut cpu = Cpu::new(&ram, &ram, entry, 0x7FFFEFFC, 0x10008000);
-                cpu.run()?;
-            }
-            "2" => {
-                let ram = UnsafeCell::new(ram);
-                let cache: UnsafeCell<Cache<_, 8, 32, 1>> = UnsafeCell::new(Cache::new(
-                    "L1",
-                    &ram,
-                    RepPolicy::Random,
-                    1,
-                    Some(tx.clone()),
-                ));
-                let mut cpu = Cpu::new(&cache, &cache, entry, 0x7FFFEFFC, 0x10008000);
-                cpu.run()?;
-            }
-            "3" => {
-                let ram = UnsafeCell::new(ram);
-                let l1d: UnsafeCell<Cache<_, 8, 16, 1>> = UnsafeCell::new(Cache::new(
-                    "L1d",
-                    &ram,
-                    RepPolicy::Random,
-                    1,
-                    Some(tx.clone()),
-                ));
-                let l1i: UnsafeCell<Cache<_, 8, 16, 1>> = UnsafeCell::new(Cache::new(
-                    "L1i",
-                    &ram,
-                    RepPolicy::Random,
-                    1,
-                    Some(tx.clone()),
-                ));
-
-                unsafe {
-                    (&mut *l1d.get()).set_sister(&l1i, true);
-                    (&mut *l1i.get()).set_sister(&l1d, true);
-                }
-
-                let mut cpu = Cpu::new(&l1d, &l1i, entry, 0x7FFFEFFC, 0x10008000);
-                cpu.run()?;
-            }
-            "4" => {
-                let ram = UnsafeCell::new(ram);
-                let l1d: UnsafeCell<Cache<_, 8, 16, 1>> = UnsafeCell::new(Cache::new(
-                    "L1d",
-                    &ram,
-                    RepPolicy::LeastRecentlyUsed,
-                    1,
-                    Some(tx.clone()),
-                ));
-                let l1i: UnsafeCell<Cache<_, 8, 16, 1>> = UnsafeCell::new(Cache::new(
-                    "L1i",
-                    &ram,
-                    RepPolicy::LeastRecentlyUsed,
-                    1,
-                    Some(tx.clone()),
-                ));
-
-                unsafe {
-                    (&mut *l1d.get()).set_sister(&l1i, true);
-                    (&mut *l1i.get()).set_sister(&l1d, true);
-                }
-
-                let mut cpu = Cpu::new(&l1d, &l1i, entry, 0x7FFFEFFC, 0x10008000);
-                cpu.run()?;
-            }
-            "5" => {
-                let ram = UnsafeCell::new(ram);
-                let l1d: UnsafeCell<Cache<_, 8, 16, 4>> = UnsafeCell::new(Cache::new(
-                    "L1d",
-                    &ram,
-                    RepPolicy::LeastRecentlyUsed,
-                    1,
-                    Some(tx.clone()),
-                ));
-                let l1i: UnsafeCell<Cache<_, 8, 16, 4>> = UnsafeCell::new(Cache::new(
-                    "L1i",
-                    &ram,
-                    RepPolicy::LeastRecentlyUsed,
-                    1,
-                    Some(tx.clone()),
-                ));
-
-                unsafe {
-                    (&mut *l1d.get()).set_sister(&l1i, true);
-                    (&mut *l1i.get()).set_sister(&l1d, true);
-                }
-
-                let mut cpu = Cpu::new(&l1d, &l1i, entry, 0x7FFFEFFC, 0x10008000);
-                cpu.run()?;
-            }
-            "6" => {
-                let ram = UnsafeCell::new(ram);
-
-                let l2: UnsafeCell<Cache<_, 16, 32, 8>> = UnsafeCell::new(Cache::new(
-                    "L2",
-                    &ram,
-                    RepPolicy::LeastRecentlyUsed,
-                    10,
-                    None,
-                ));
-
-                let l1d: UnsafeCell<Cache<_, 16, 8, 4>> = UnsafeCell::new(Cache::new(
-                    "L1d",
-                    &l2,
-                    RepPolicy::LeastRecentlyUsed,
-                    1,
-                    Some(tx.clone()),
-                ));
-                let l1i: UnsafeCell<Cache<_, 16, 8, 4>> = UnsafeCell::new(Cache::new(
-                    "L1i",
-                    &l2,
-                    RepPolicy::LeastRecentlyUsed,
-                    1,
-                    Some(tx.clone()),
-                ));
-
-                unsafe {
-                    (&mut *l1d.get()).set_sister(&l1i, true);
-                    (&mut *l1i.get()).set_sister(&l1d, true);
-                }
-
-                let mut cpu = Cpu::new(&l1d, &l1i, entry, 0x7FFFEFFC, 0x10008000);
-                cpu.run()?;
-            }
-            c => return Err(eyre!("Configuração de memória {} não conhecida!", c)),
-        };
+        run_from_ram(ram, entry, mem_cfg, Some(tx.clone()))?;
 
         tx.send(MemoryEvent::Finish).unwrap();
         rep_thread.join().unwrap();
@@ -642,14 +403,7 @@ fn main() -> Result<()> {
             }
         }
 
-        let ram = UnsafeCell::new(ram);
-        let cache: UnsafeCell<Cache<_, 1, 8, 1>> =
-            UnsafeCell::new(Cache::new("L1", &ram, RepPolicy::Random, 1, None));
-
-        // Seta o PC para o entry point do arquivo ELF
-        let mut cpu = Cpu::new(&cache, &cache, elf.entry as u32, 0x7FFFEFFC, 0x10008000);
-
-        cpu.run()?;
+        run_from_ram(ram, elf.entry as u32, mem_cfg, None)?;
 
         Ok(())
     } else if let Some(matches) = matches.subcommand_matches("decodeelf") {
