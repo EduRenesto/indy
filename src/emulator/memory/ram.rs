@@ -99,6 +99,8 @@ impl Memory for Ram {
             addr += 4;
         }
 
+        self.accesses += 1;
+
         Ok(self.latency)
     }
 

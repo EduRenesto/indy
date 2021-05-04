@@ -40,8 +40,10 @@ pub struct MemoryReporter;
 impl MemoryReporter {
     /// Cria um novo `MemoryReporter`, iniciando a thread e retornando o join handle
     /// da mesma, e o write end do channel.
-    pub fn new(file: File, debug: bool) -> (thread::JoinHandle<()>, mpsc::Sender<MemoryEvent>) {
-        let (tx, rx) = mpsc::channel();
+    pub fn new(file: File, debug: bool) -> (thread::JoinHandle<()>, mpsc::SyncSender<MemoryEvent>) {
+        // Quanto maior o valor aqui, mais rápido o `trace` e `debug` vão rodar.
+        // No entanto, vai consumir mais memória.
+        let (tx, rx) = mpsc::sync_channel(1000000);
 
         let handle = thread::spawn(move || {
             let mut file = file;

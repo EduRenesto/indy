@@ -2,7 +2,7 @@ use super::reporter::MemoryEvent;
 use super::Memory;
 
 use std::cell::UnsafeCell;
-use std::sync::mpsc::Sender;
+use std::sync::mpsc::SyncSender;
 
 use log::debug;
 use rand::{
@@ -142,7 +142,7 @@ pub struct Cache<'a, T: Memory, const L: usize, const N: usize, const A: usize> 
     /// Um gerador aleatorio para o line replacing.
     rng: ThreadRng,
     /// O write-end de um Memory Reporter.
-    reporter: Option<Sender<MemoryEvent>>,
+    reporter: Option<SyncSender<MemoryEvent>>,
     /// A cache irmã, se existente.
     sister: Option<&'a UnsafeCell<Cache<'a, T, L, N, A>>>,
     /// `true` se a cache deve procurar na irmã antes de ir ao próximo nível.
@@ -157,7 +157,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
         next: &'a UnsafeCell<T>,
         policy: RepPolicy,
         latency: usize,
-        reporter: Option<Sender<MemoryEvent>>,
+        reporter: Option<SyncSender<MemoryEvent>>,
     ) -> Self {
         let set_size = A;
         let n_sets = N / set_size;
@@ -257,7 +257,6 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
 
         match self.policy {
             RepPolicy::Random => {
-                // TODO da pra tirar umas coisas daq
                 let dist = Uniform::new(0, set_size);
                 let way = dist.sample(&mut self.rng);
                 let line_idx = set_idx * set_size + way;
@@ -318,7 +317,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
     /// Retorna o total de ciclos gastos.
     fn flush_line(&mut self, idx: &LineIndex) -> Result<usize> {
         match &self.lines[idx.line_idx] {
-            Some(ref line) if line.dirty => {
+            Some(ref line) if line.dirty && line.valid => {
                 let set_size = A;
                 let n_sets = N / set_size;
                 let n_sets_bits = log2_lut(n_sets);

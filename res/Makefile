@@ -8,7 +8,8 @@ ARTIFACTS := 13.arit.data 13.arit.text 13.arit.rodata 13.arit.elf \
 			 18.naive_dgemm.data 18.naive_dgemm.text 18.naive_dgemm.rodata 18.naive_dgemm.elf \
 			 19.regular_dgemm.data 19.regular_dgemm.text 19.regular_dgemm.rodata 19.regular_dgemm.elf \
 			 20.blocking_dgemm.data 20.blocking_dgemm.text 20.blocking_dgemm.rodata 20.blocking_dgemm.elf \
-			 21.mandelbrot.data 21.mandelbrot.text 21.mandelbrot.rodata 21.mandelbrot.elf
+			 21.mandelbrot.data 21.mandelbrot.text 21.mandelbrot.rodata 21.mandelbrot.elf \
+			 97.smol_dgemm.data 97.smol_dgemm.text 97.smol_dgemm.rodata 97.smol_dgemm.elf 
 
 # - arquitetura mips e com símbolos de debug
 # - com otimizações para acelerar a execução
