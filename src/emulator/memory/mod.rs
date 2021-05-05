@@ -1,10 +1,20 @@
+//! # Memory
+//!
+//! Esse módulo implementa as estruturas que emulam acesso
+//! a memória.
+//!
+//! A trait `Memory` representa a interface externa de um dispositivo
+//! de memória qualquer, com funções de leitura e escrita, tanto única
+//! quanto múltipla.
+//!
+//! O módulo `cache` implementa as memórias Cache.
+
 use color_eyre::eyre::Result;
 
 pub mod cache;
 pub mod ram;
 pub mod reporter;
 
-// TODO remover depois da integracao
 pub use cache::{Cache, RepPolicy};
 pub use ram::Ram;
 
@@ -41,13 +51,15 @@ pub trait Memory {
 
     /// Faz uma leitura não alinhada na memória. Isto é, retorna apenas um byte
     /// de uma word.
+    ///
+    /// Método deprecado: faça a coisa certa e leia palavra-a-palavra1
+    #[deprecated]
     fn peek_unaligned(&mut self, addr: u32) -> Result<u8> {
         let base = addr & 0xFFFFFFFC; // alinha pro lowest multiplo de 4
         let offset = addr - base; // offset agora armazena qual é o byte desejado
 
         let word = self.peek(base)?.0;
 
-        //Ok(((word & (0xFF << offset )) >> offset) as u8)
         Ok(word.to_le_bytes()[offset as usize])
     }
 }

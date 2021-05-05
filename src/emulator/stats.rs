@@ -1,17 +1,28 @@
+///! Reportador de estatísticas de execução.
+
 use std::time::Instant;
 
 use crate::emulator::Instruction;
 
 use color_eyre::eyre::{eyre, Result};
 
+/// Um reportador de estatísticas de execução.
+/// Armazena o total de ciclos gasto, bem como o tempo gasto
+/// durante a execução.
 pub struct StatsReporter {
+    /// O total de instruções executadas, indexadas pelo tipo da 
+    /// instrução.
     n_instructions: [usize; 5],
+    /// O número de (mono)ciclos executados até agora.
     n_cycles: usize,
+    /// O instante em que a execução começou.
     start: Option<Instant>,
+    /// O instante em que a execução terminou.
     finish: Option<Instant>,
 }
 
 impl StatsReporter {
+    /// Cria um novo `StatsReporter` zerado.
     pub fn new() -> StatsReporter {
         StatsReporter {
             n_instructions: [0; 5],
@@ -21,22 +32,27 @@ impl StatsReporter {
         }
     }
 
+    /// Inicia a contagem de estatísticas e de tempo.
     pub fn start(&mut self) {
         self.start = Some(Instant::now());
     }
 
+    /// Termina a contagem de estatísticas e de tempo.
     pub fn finish(&mut self) {
         self.finish = Some(Instant::now());
     }
 
+    /// Adiciona uma instrução na contagem de instruções.
     pub fn add_instr(&mut self, instr: &Instruction) {
         self.n_instructions[instr.kind() as usize] += 1;
     }
 
+    /// Adiciona o número de ciclos à contagem.
     pub fn add_cycles(&mut self, cycles: usize) {
         self.n_cycles += cycles;
     }
 
+    /// Analisa as estatísticas e imprime os resultados na saída padrão.
     pub fn print_stats(&self) -> Result<()> {
         let start = *self
             .start

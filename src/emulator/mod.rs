@@ -1,4 +1,4 @@
-//! Esse módulo encapsula o core do emulador.
+//! Módulo que engloba a emulação propriamente dita.
 
 pub(crate) mod cpu;
 pub(crate) mod instr;
@@ -7,7 +7,6 @@ pub(crate) mod stats;
 
 // Re-exports pra ficar melhor de usar ao longo do código
 pub use cpu::Cpu;
-//pub use instr::{IArgs, Instruction, RArgs};
 pub use memory::Ram as Memory;
 
 /// Mais uma vez usamos o `newtype`. Essa struct não é um registrador em si

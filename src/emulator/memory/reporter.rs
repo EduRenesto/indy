@@ -1,13 +1,4 @@
-//! TODO Transformar isso numa trait e usar o type system
-//! pra quando não é preciso!
-//!
-//! Pelo jeito, perdi um pouco de performance nas caches
-//! ao fazer a checagem se existe um sender a cada leitura
-//! e escrita.
-//!
-//! Se fazer isso pelo type system, minha ideia é que no
-//! final sejam gerados NOP no modo run, e assim o compilador
-//! pode só otimizar pra fora.
+//! Reportagem de uso de memória.
 
 use std::fs::File;
 use std::io::Write;

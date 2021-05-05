@@ -1,3 +1,5 @@
+//! Implementação da memória cache.
+
 use super::reporter::MemoryEvent;
 use super::Memory;
 
@@ -53,6 +55,8 @@ pub enum RepPolicy {
     /// Uma linha aleatória será escolhida para ser substituída.
     Random,
     /// A última linha utilizada será escolhida para ser substituída.
+    /// A determinação de idade é feita pelo "número" do último acesso
+    /// à essa linha.
     LeastRecentlyUsed,
 }
 
@@ -105,19 +109,18 @@ struct LineIndex {
 }
 
 impl LineIndex {
+    /// Retorna o endereço mais baixo que tem o número de linha do índice atual.
     pub fn to_addr<const L: usize>(&self) -> u32 {
-        //let set_size = A;
-        //let n_sets = N / set_size;
-        //let n_sets_bits = log2_lut(n_sets);
-
-        //((self.line_number << n_sets_bits) | self.set_idx) as u32
-
         (self.line_number * L * 4) as u32
     }
 }
 
+/// O tipo retornado pela função `find_line`.
 enum FindLine {
+    /// O endereço foi encontrado na cache na linha especificada.
     Hit(LineIndex),
+    /// O endereço não foi encontrado na cache, e a linha especificada
+    /// deverá ser reescrita.
     Miss(LineIndex),
 }
 
@@ -150,6 +153,12 @@ pub struct Cache<'a, T: Memory, const L: usize, const N: usize, const A: usize> 
     fetch_from_sister: bool,
 }
 
+/// Escreve o argumento no `Reporter` explicitado, se existir.
+/// Exemplo de uso:
+///
+/// ```rust
+/// print_debug!(self.reporter, "Olá! 40 + 2 = {}", 40 + 2);
+/// ```
 macro_rules! print_debug {
     ($r:expr, $($arg:tt)*) => {
         if let Some(tx) = &$r {
@@ -200,32 +209,20 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
 
     /// Acha a linha em que o endereço está.
     fn find_line(&mut self, addr: u32) -> FindLine {
-        //let set_size = (32 * L * A);
-        //let n_sets = (N * L * 32) / set_size;
         let set_size = A;
         let n_sets = N / set_size;
         let n_sets_bits = log2_lut(n_sets);
 
-        //debug!(
-        //    "cache {}: calculating tag for address {:#010x}",
-        //    self.name, addr
-        //);
-        //debug!("cache {}: |=> addr        = {:#034b}", self.name, addr);
         let line_number = addr as usize / (L * 4);
-        //debug!(
-        //    "cache {}: |=> line_number = {:#034b}",
-        //    self.name, line_number
-        //);
-        let set_idx = line_number & ((n_sets).next_power_of_two() - 1); // Isso só funciona com potências de 2!!!!!
-                                                                        //debug!("cache {}: |=> set_idx     = {:#034b}", self.name, set_idx);
+        let set_idx = line_number & ((n_sets).next_power_of_two() - 1);
         let tag = line_number >> n_sets_bits;
-        //debug!("cache {}: |=> tag         = {:#034b}", self.name, tag);
 
         debug!(
             "cache {}: addr {:#010x} => line {:#010x}, tag {:#010x}",
             self.name, addr, line_number, tag
         );
 
+        // Checa cada linha do set se a tag é a mesma que a calculada.
         for i in 0..set_size {
             let line_idx = set_idx * set_size + i;
             match &self.lines[line_idx] {
@@ -254,11 +251,8 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
 
         print_debug!(self.reporter, "{}: miss", self.name);
 
-        //if A == 1 {
-        //    let line_idx = (base / 4) as usize % N;
-        //    return FindLine::Miss(line_idx, offset);
-        //}
-
+        // Se chegou aqui, a linha não está na cache. Então, vamos escolher
+        // uma linha pra ser sobrescrita.
         match self.policy {
             RepPolicy::Random => {
                 let dist = Uniform::new(0, set_size);
@@ -279,6 +273,14 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
                 })
             }
             RepPolicy::LeastRecentlyUsed => {
+                // Essa parte é mágica.
+                // se T implementa PartialOrd, então (T, T), (T, T, T), (T, T, T, ...) também.
+                // A saber, implementa uma ordem lexicográfica usando a ordem em T.
+                //
+                // Então, criamos uma lista de tuplas (idade, index, way) com todas as linhas
+                // do set. Dai, tiramos o mínimo dessa lista. Inicialmente, vai tentar escolher
+                // a linha com a menor idade (que no caso é a mais velha). Se várias linhas
+                // tiverem a mesma idade minimal, então escolhe a de menor índice.
                 let (_, idx, way) = (0..set_size)
                     .into_iter()
                     .map(|i| {
@@ -349,19 +351,6 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
 
                 let cycles = unsafe {
                     let mut total_cycles = 0;
-                    //let addr = idx.to_addr::<L>();
-                    //for i in 0..L {
-                    //    let a = base + 4 * i as u32;
-                    //    debug!(
-                    //        "cache {}: next[{:#010x}] <- {:#010x}[{}]",
-                    //        self.name, a, idx.line_number, i
-                    //    );
-                    //    let cycles = (&mut *self.next.get()).poke(a, line.data[i])?;
-
-                    //    if cycles > total_cycles {
-                    //        total_cycles = cycles;
-                    //    }
-                    //}
 
                     total_cycles +=
                         (&mut *self.next.get()).poke_from_slice(base, &line.data[..])?;
@@ -404,23 +393,8 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
             base
         );
 
-        //let tag = self.calc_tag(base);
-
         if let Some(line) = self.lines[idx.line_idx].as_mut() {
             unsafe {
-                //for i in 0..L {
-                //    let a = base + 4 * i as u32;
-                //    let (d, cycles) = (&mut *self.next.get()).peek(a)?;
-                //    debug!(
-                //        "cache {}: {:#010x}[{}] <- next[{:#010x}] ({:#010x})",
-                //        self.name, idx.line_number, i, a, d
-                //    );
-                //    line.data[i] = d;
-                //    if cycles > total_cycles {
-                //        total_cycles = cycles;
-                //    }
-                //}
-
                 let next = &mut *self.next.get();
                 total_cycles += next.peek_into_slice(base, &mut line.data[..])?;
             }
@@ -430,18 +404,6 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
         } else {
             let mut data = [0; L];
             unsafe {
-                //for i in 0..L {
-                //    let a = base + 4 * i as u32;
-                //    let (d, cycles) = (&mut *self.next.get()).peek(a)?;
-                //    debug!(
-                //        "cache {}: {:#010x}[{}] <- next[{:#010x}] ({:#010x})",
-                //        self.name, idx.line_number, i, a, d
-                //    );
-                //    data[i] = d;
-                //    if cycles > total_cycles {
-                //        total_cycles = cycles;
-                //    }
-                //}
                 let next = &mut *self.next.get();
 
                 total_cycles += next.peek_into_slice(base, &mut data[..])?;
@@ -459,7 +421,9 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
         Ok(total_cycles)
     }
 
-    /// Lógica compartilhada
+    /// Tenta buscar um endereço dentro da cache. No sucesso, retorna uma tupla
+    /// contendo o índice da linha + offset, o valor armazenado no endereço
+    /// e o total de ciclos gasto na pesquisa.
     fn do_peek(&mut self, addr: u32) -> Result<(LineIndex, u32, usize)> {
         self.accesses += 1;
 
@@ -557,16 +521,6 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
 
                     Ok((idx, line.data[idx.offset], cycles + self.latency))
                 }
-
-                //let mut cycles = 0;
-
-                //// Faz o flush da linha antiga
-                //cycles += self.flush_line(&idx)?;
-                //cycles += self.load_into_line(&idx, base)?;
-
-                //let line = self.lines[idx.line_idx].unwrap();
-
-                //Ok((idx, line.data[idx.offset], cycles + self.latency))
             }
         }
     }
@@ -634,6 +588,15 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
     }
 
     fn peek_into_slice(&mut self, addr: u32, target: &mut [u32]) -> Result<usize> {
+        // DISCLAIMER: Eu sei, esse código já apareceu 29389234x. Embora o "shell"
+        // seja o mesmo, o núcleo das funções que apresentam essa cara sempre é diferente.
+        // Não tive tempo de pensar numa abstração para evitar esse yyP de código.
+        // Talvez utilizar closures seja uma solução, mas não há tempo pra pensar
+        // nos problemas de ownership e lifetimes que irão causar, nem numa interface
+        // bonitinha.
+        //
+        // I'm sorry D':
+
         assert!(target.len() <= L);
 
         self.accesses += 1;
@@ -656,14 +619,6 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
                 Ok(self.latency)
             }
             FindLine::Hit(idx) => {
-                // Hit inválido
-                // i.e. registra miss e tenta pegar da irmã.
-                // se não rolar na irmã, aí é miss de verdade.
-                // DISCLAIMER: aqui não é preciso checar se tá dirty ou não
-                // antes de fazer o load.
-                // Só as caches de instruções vão cair nesse ramo, e não há escrita a partir
-                // delas. Então, os bits de dirty sempre vão ser false.
-
                 self.misses += 1;
                 debug!(
                     "cache {}: read access {:#010x} invalid hit at line {:#010x} ({}) offset {:x}",
@@ -737,7 +692,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
 
                     // Faz o flush da linha antiga
                     cycles += self.flush_line(&idx)?;
-                    cycles += self.load_into_line(&idx, addr)?; // HACK HACK HACK
+                    cycles += self.load_into_line(&idx, addr)?;
 
                     let mut line = self.lines[idx.line_idx].as_mut().unwrap();
                     line.last_access = self.accesses;

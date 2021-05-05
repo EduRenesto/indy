@@ -1,6 +1,6 @@
-//! Esse módulo implementa as funções relacionadas à memória no emulador.
-//! Futuramente, quero implementar uma MMU para mapping e caches, e
-//! provavelmente boa parte dessa empreitada aparecerá nesse módulo.
+//! Esse módulo faz a implementação da memória RAM no emulador.
+//! A memória RAM não é cacheada, e sempre demora um número fixo
+//! de ciclos para acessos de leitura e escrita.
 
 use super::Memory;
 
@@ -21,8 +21,11 @@ macro_rules! check_alignment {
 
 /// Como sugerido, a memória é só um HashMap onde as chaves são os endereços.
 pub struct Ram {
+    /// O mapa que armazena os endereços e valores.
     memory: HashMap<u32, u32>,
+    /// A latência da memória.
     latency: usize,
+    /// O total de acessos feitos.
     accesses: usize,
 }
 
@@ -50,8 +53,6 @@ impl Memory for Ram {
 
         self.accesses += 1;
 
-        //println!("mem: read {:#010x}", addr);
-
         Ok((*self.memory.get(&addr).unwrap_or(&0), self.latency))
     }
 
@@ -59,8 +60,6 @@ impl Memory for Ram {
         check_alignment!(addr);
 
         self.accesses += 1;
-
-        //println!("mem: read {:#010x}", addr);
 
         Ok((*self.memory.get(&addr).unwrap_or(&0), self.latency))
     }
@@ -86,8 +85,6 @@ impl Memory for Ram {
 
         self.accesses += 1;
 
-        //println!("mem: write {:#010x}", addr);
-
         self.memory.insert(addr, val);
 
         Ok(self.latency)
@@ -96,7 +93,6 @@ impl Memory for Ram {
     fn poke_from_slice(&mut self, base: u32, data: &[u32]) -> Result<usize> {
         let mut addr = base;
         for word in data {
-            //self.poke(addr, *word)?;
             self.memory.insert(addr, *word);
             addr += 4;
         }
@@ -116,7 +112,6 @@ impl Memory for Ram {
 
         self.accesses += 1;
 
-        //Ok(((word & (0xFF << offset )) >> offset) as u8)
         Ok(word.to_le_bytes()[offset as usize])
     }
 

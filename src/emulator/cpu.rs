@@ -33,7 +33,6 @@ struct FloatRegisters([u32; 32]);
 
 /// Reinterpreta os bits de um unsigned de 32 bits como um signed de 32 bits.
 fn as_signed(val: u32) -> i32 {
-    //i32::from_le_bytes(val.to_le_bytes())
     unsafe {
         let ptr = (&val as *const u32) as *const i32;
         *ptr
@@ -42,7 +41,6 @@ fn as_signed(val: u32) -> i32 {
 
 /// Reinterpreta os bits de um signed de 32 bits como um unsigned de 32 bits.
 fn as_unsigned(val: i32) -> u32 {
-    //u32::from_le_bytes(val.to_le_bytes())
     unsafe {
         let ptr = (&val as *const i32) as *const u32;
         *ptr
@@ -51,10 +49,6 @@ fn as_unsigned(val: i32) -> u32 {
 
 /// Reinterpreta os bits de um unsigned de 32 bits como um float de single precision.
 fn word_to_single(val: u32) -> f32 {
-    // TODO does this work?
-    // Se sim, devo fazer nos outros acima?
-    // Isso é _no additional copy_, mas e se &val nao existir mais?
-    // Provavelmente vai.
     unsafe {
         let ptr = (&val as *const u32) as *const f32;
         *ptr
@@ -69,8 +63,6 @@ fn dword_to_double(lo: u32, hi: u32) -> f64 {
         let ptr = (arr.as_ptr() as *const u32) as *const f64;
         *ptr
     }
-
-    //f64::from_le_bytes((lo as u64 | ((hi as u64) << 32)).to_le_bytes())
 }
 
 /// Reinterpreta os bits de um float de single precision como um unsigned de 32 bits.
@@ -79,8 +71,6 @@ fn single_to_word(val: f32) -> u32 {
         let ptr = (&val as *const f32) as *const u32;
         *ptr
     }
-
-    //u32::from_le_bytes(val.to_le_bytes())
 }
 
 /// Reinterpreta os bits de um float de double precision como dois unsigned de 32 bits.
@@ -91,9 +81,6 @@ fn double_to_dword(val: f64) -> (u32, u32) {
         let arr: [u32; 2] = std::mem::transmute(val);
         (arr[0], arr[1])
     }
-
-    //let dword = u64::from_le_bytes(val.to_le_bytes());
-    //((dword & 0xFFFFFFFF) as u32, ((dword & 0xFFFFFFFF00000000) >> 32) as u32)
 }
 
 impl std::ops::Index<Register> for Registers {
@@ -248,8 +235,6 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
                 self.stats.add_cycles(1);
             }
             Instruction::SYSCALL(_) => {
-                //println!("debug: syscall");
-                //println!("{}", self.regs);
                 match self.regs[Register(2)] {
                     1 => {
                         print!("{}", as_signed(self.regs[Register(4)]));
@@ -278,9 +263,6 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
                             let (val, cycles) = self.mem.peek(addr)?;
                             let val = val.to_le_bytes();
 
-                            //if cycles > total_cycles {
-                            //    total_cycles = cycles;
-                            //}
                             self.stats.add_cycles(cycles);
 
                             for i in byte_offset..4 {
@@ -371,7 +353,6 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
             Instruction::BEQ(args) => {
                 if self.regs[args.rs] == self.regs[args.rt] {
                     let target = branch_addr(args.imm);
-                    //self.pc = (self.pc as i32 + target) as u32;
                     self.branch_to = Some((self.pc as i32 + target + 4) as u32);
                 }
                 self.stats.add_cycles(1);
@@ -655,20 +636,11 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
                 self.stats.add_cycles(1);
             }
             Instruction::BGEZ(args) => {
-                // Pq a impl de BAL funciona aq, mas BGEZ nao???? lol
-                //if as_signed(self.regs[args.rs]) >= 0 {
-                //    let target = branch_addr(args.imm);
-                //    self.branch_to = Some((self.pc as i32 + target + 4) as u32);
-                //}
-
                 if (self.regs[args.rs] & (1 << 31)) == 0 {
                     let target = branch_addr(args.imm);
                     self.branch_to = Some((self.pc as i32 + target + 4) as u32);
                 }
 
-                //self.regs[Register(31)] = self.pc + 4;
-                //let target = branch_addr(args.imm);
-                //self.branch_to = Some((self.pc as i32 + target + 4) as u32);
                 self.stats.add_cycles(1);
             }
             Instruction::SWC1(args) => {
@@ -681,7 +653,6 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
             Instruction::C_LT_S(args) => {
                 self.float_cc = word_to_single(self.float_regs[args.fs])
                     < word_to_single(self.float_regs[args.ft]);
-                //println!("{} < {}? {}", self.float_regs[args.fs], self.float_regs[args.ft], self.float_cc);
                 self.stats.add_cycles(1);
             }
             Instruction::BC1T(args) => {
@@ -702,8 +673,6 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
         }
 
         // TODO `branch_to.is_some()` é invariante, tirar depois
-        //
-        // ...pq não posso usar && com `if let`? Deve ter algum RFC pra isso
         if self.in_delay_slot && self.branch_to.is_some() {
             self.pc = self.branch_to.unwrap();
             self.in_delay_slot = false;

@@ -18,6 +18,7 @@ use emulator::memory::{reporter::*, Cache, Memory, Ram, RepPolicy};
 use emulator::Cpu;
 use emulator::Instruction;
 
+/// Descrição e tabela das configurações de memória disponíveis.
 const CONFIG_HELP: &str = "As configurações de memória podem ser as seguintes:
 (tabela copiada do `minips` de referência)
 
@@ -78,6 +79,9 @@ impl Executable {
     }
 }
 
+/// Assume que o objeto `ram` recebido já contém o conteúdo do programa
+/// a ser executado, e o executa levando em consideração a configuração
+/// de memória e o reporter associado.
 fn run_from_ram(
     ram: Ram,
     entry: u32,
