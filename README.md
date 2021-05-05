@@ -1,5 +1,13 @@
 # minips-rs
 
+## ATENÇÃO: ATUALIZE SEU TOOLCHAIN RUST!
+
+Essa última versão do `minips-rs` usa em peso Const Generics, disponível na
+branch estável do `rustc` a partir da versão 1.51. Então, se sua versão do 
+toolchain é `stable` e mais antiga que 1.51, atualize! (hint: `rustup update`)
+
+---
+
 `minips-rs` é um emulador que implementa a ISA MIPS, escrito em Rust para a
 disciplina Arquitetura de Computadores, na UFABC durante o quadrimeste 2021.1
 pelo grande prof. dr. Emilio Francesquini.
@@ -21,9 +29,9 @@ basta rodar `make` na pasta `relatorio`.
 ## Requisitos
 
 - Toolchain Rust: o projeto está sendo desenvolvido e testado utilizando a
-  versão `1.52.0-nightly` (2021-02-10) do `rustc` e ferramentas. No entanto, o
+  versão `1.53.0-nightly` (2021-03-24) do `rustc` e ferramentas. No entanto, o
   código principal não utiliza nenhuma feature instável, portanto um toolchain
-  `stable` relativamente novo é suficiente. Instalação e atualização do
+  `stable` mais novo ou igual ao `1.51` é suficiente. Instalação e atualização do
   toolchain pode ser feita com facilidade com o
   [rustup.rs](https://rustup.rs).
 - *(extra)* Toolchain GCC MIPS: para compilar alguns experimentos que fiz,
@@ -44,8 +52,24 @@ Onde `file` é o prefixo dos arquivos em questão (por ex, `02.hello`).
 Para executar o binário, utilize:
 
 ```sh
-$ cargo run -- run file
+$ cargo run --release -- run [conf] file
 ```
+
+Para executar o binário, gravando os acessos à memória num arquivo, utilize:
+
+```sh
+$ cargo run --release -- trace [--outfile out] [conf] file
+```
+
+Para executar o binário, gravando os acessos à memória e mais informaçõs num
+arquivo, utilize:
+
+```sh
+$ cargo run --release -- debug [--outfile out] [conf] file
+```
+
+Todos os comandos suportam a escrita de informações de debug na saída padrão.
+Para tal, basta setar a variável de ambiente `RUST_LOG=debug`.
 
 ## Documentação
 
@@ -84,7 +108,7 @@ compilação. Veja o arquivo `res/extra/Makefile` para entender o processo.
 Para executar um arquivo ELF, basta usar o subcomando `runelf`. Exemplo:
 
 ```sh
-cargo run -- runelf res/extra/90.simple.o
+cargo run -- runelf [conf] file
 ```
 
 Para desmontá-lo, use o subcomando `decodeelf`. Ele irá desconstruir todas as
@@ -92,7 +116,7 @@ seções que estão marcadas com a flag `ALLOC`, ou seja, as que serão carregad
 na memória. Exemplo:
 
 ```sh
-cargo run -- decodeelf res/extra/90.simple.o
+cargo run -- decodeelf file
 ```
 
 Outro TODO grande é rodar código Rust MIPS!
