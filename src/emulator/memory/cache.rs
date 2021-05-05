@@ -208,7 +208,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
     }
 
     /// Acha a linha em que o endereço está.
-    fn find_line(&mut self, addr: u32) -> FindLine {
+    fn find_line(&mut self, addr: u32, replace: bool) -> FindLine {
         let set_size = A;
         let n_sets = N / set_size;
         let n_sets_bits = log2_lut(n_sets);
@@ -250,6 +250,19 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
         }
 
         print_debug!(self.reporter, "{}: miss", self.name);
+
+        if !replace {
+            // Se chegou aqui, é miss e o caller só queria saber
+            // se estava ou não na cache.
+            // Então, vamos retornar um Miss vazio.
+            return FindLine::Miss(LineIndex {
+                line_number,
+                set_idx,
+                offset: 0xDEADBEEF,
+                line_idx: 0xC0FEBABE,
+                tag,
+            });
+        }
 
         // Se chegou aqui, a linha não está na cache. Então, vamos escolher
         // uma linha pra ser sobrescrita.
@@ -430,7 +443,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
         let offset = (addr / 4) as usize % L;
         let base = addr - (4 * offset as u32);
 
-        match self.find_line(addr) {
+        match self.find_line(addr, true) {
             FindLine::Hit(idx) if self.lines[idx.line_idx].as_ref().unwrap().valid => {
                 // Hit válido
                 print_debug!(self.reporter, "\tline is valid: hit!");
@@ -527,7 +540,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Cache<'a, T,
 
     /// Invalida a linha da cache que contém esse endereço.
     fn invalidate_line(&mut self, addr: u32) {
-        if let FindLine::Hit(idx) = self.find_line(addr) {
+        if let FindLine::Hit(idx) = self.find_line(addr, false) {
             debug!(
                 "cache {}: invalidating line {:#010x}",
                 self.name, idx.line_number
@@ -601,7 +614,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
 
         self.accesses += 1;
 
-        match self.find_line(addr) {
+        match self.find_line(addr, true) {
             FindLine::Hit(idx) if self.lines[idx.line_idx].as_ref().unwrap().valid => {
                 // Hit válido
                 print_debug!(self.reporter, "\tline is valid: hit!");
@@ -716,7 +729,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
             }
         }
 
-        match self.find_line(addr) {
+        match self.find_line(addr, true) {
             FindLine::Hit(idx) => {
                 debug!(
                     "cache {}: write access {:#010x} hit at line {:#010x} ({}) offset {:x}",
@@ -783,7 +796,7 @@ impl<'a, T: Memory, const L: usize, const N: usize, const A: usize> Memory
             }
         }
 
-        match self.find_line(base) {
+        match self.find_line(base, true) {
             FindLine::Hit(idx) => {
                 debug!(
                     "cache {}: write access {:#010x} hit at line {:#010x} ({}) offset {:x}",
