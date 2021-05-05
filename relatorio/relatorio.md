@@ -1,5 +1,5 @@
 ---
-title: MINIPS Fase I & II - Relatório
+title: MINIPS Fase I, II & III - Relatório
 author: Eduardo Renesto
 date: Arquitetura de Computadores 2021.1 - Prof. Dr. Emilio Francesquini
 fontfamily: libertinus
@@ -20,131 +20,139 @@ colorlinks: true
 - **Link do vídeo:** 
     - *Fase I*: [https://www.youtube.com/watch?v=ObtdlKSBpvQ](https://www.youtube.com/watch?v=ObtdlKSBpvQ)
     - *Fase II:* [https://www.youtube.com/watch?v=6ZF_8dQqiiI](https://www.youtube.com/watch?v=6ZF_8dQqiiI)
+    - *Fase III:* TODO
 
 # Introdução
 
-Nesse texto apresento minha experiência desenvolvendo o `minips-rs` [^1], minha
-implementação do projeto do quadrimestre da disciplina.
+Nesse texto, apresento uma visão geral da arquitetura e do desenvolvimento do
+`minips-rs`, minha implementação do projeto do quadrimestre da disciplina.
 
-[^1]: nome sujeito a mudanças (eventualmente)
+O `minips-rs` é um emulador que implementa um subconjunto da arquitetura MIPS.
+Além disso, com a parte III, também é um emulador de memórias cache e
+apresenta estatísticas *cycle-perfect* da emulação.
 
-Antes de tudo, afirmo que me diverti bastante no processo. Antes da
-disciplina, eu já havia começado a escrever um emulador para o *NES*, e tinha
-uma implementação do MOS 6502 razoavelmente funcional. Assim, já tinha em
-mente uma ideia de arquitetura para esse projeto, além de uns "reflexos" sobre
-o que fazer e não fazer.
+Sobre a arquitetura do projeto, destacam-se três partes importantes: as
+instruções, a CPU e a memória.
 
-# Dificuldades 
+# Instruções
 
-## Fase I
+O tratamento das instruções é gerado programaticamente por meio da macro
+`instructions_from_yaml`, que está implementada na subcrate `minips-macros`.
+Essa macro consome o arquivo `instructions.yml` e gera a declaração, *parsing* e
+*pretty-printing* de cada instrução lá descrita.
 
-Embora o desenvolvimento tenha sido relativamente tranquilo, as minhas maiores
-dificuldades se deram durante a implementação dos branches. Entender o cálculo
-do alvo, apesar de ser simples, olhando em retrospecto, demorou um pouco: tive
-alguns problemas ao levar em consideração que, na minha implementação, o
-*program counter* sempre é incrementado em 4 a cada instrução,
-independentemente de qual foi executada. Eventualmente, comparando a execução
-do meu código com o `minips` de referência, consegui fazê-los funcionar.
+A declaração se dá por uma `enum Instructions`. Cada instrução é uma variante
+desse enum, que encapsula instâncias das structs `{R,I,J,FR,FI}Args` contendo
+os índices de registradores para cada operação. Essa enum pode ser encontrada
+na documentação pelo nome `minips_rs::emulator::autogen::Instruction`.
 
-Também tive problemas com interpretação de inteiros -- quando assumir que um
-valor é com ou sem sinal. Isso se deve ao fato de eu ter assumido que as
-instruções `ADD(I)U` apenas tratavam com inteiros `unsigned`. Teoricamente,
-como a soma de inteiros com e sem sinal, em complemento de 2, é igual
-bit-a-bit, não haveria problema. No entanto, como eu estava sempre fazendo
-extensão com zeros para os 32 bits, por achar que eram unsigned, o resultado
-não era o esperado. Depois de leitura do *greencard*, e escrevendo um assembly
-simples para teste, foi possível corrigir esse problema.
+O *decode* das instruções está implementado na função `Instruction::decode`,
+que recebe uma palavra de 32 bits e retorna a instrução decodificada caso
+ocorra sucesso. Essa função também é gerada pela macro.
 
-Faço uma observação: *debuggar assembly é difícil* `:P`, ainda mais sem um
-debugger no cliente. Imprimir a instrução atual, bem como os valores dos
-registradores, em alguns momentos foi útil em algumas situações.
+O *pretty-printing* das instruções é feito pela implementação da trait
+`Display` na enum `Instruction`. Naturalmente, essa implementação também é
+gerada pela macro.
 
-## Fase II
+# CPU
 
-O desenvolvimento da fase II se deu sem problema nenhum -- a implementação,
-graças ao sistema de geração de instruções prático, se deu ao longo de menos
-de uma semana.
+A CPU está implementada no arquivo `src/emulator/cpu.rs`. O *register file* é
+modelado usando o `newtype Registers`, que encapsula uma array de 32 inteiros
+sem sinal de 32 bits. Os registradores de ponto flutuante, do coprocessador 1,
+são implementados exatamente da mesma maneira, no entanto com o `newtype
+FloatRegisters`. Os dois conjuntos de registradores são indexados pelos
+`newtype Register` e `FloatRegister`, que encapsulam inteiros de 32 bits e são
+instanceados durante a decodificação das instruções.
 
-No entanto, mais uma vez a maior dificuldade foi alinhar os branches,
-especialmente com o *branch delay slot*. Além disso, encontrar uma maneira
-*bonita* para implementar essa propriedade não foi tão trivial quanto eu
-inicialmente imaginava.
+A CPU também faz o papel de controlador de memória -- ela é parametrizada
+sobre dois tipos que implementam a trait `Memory` (vide abaixo): `TI` e `TD`,
+que são o tipo da memória de instruções e de dados, respectivamente. É
+armazenada uma referência a um objeto de cada tipo por meio do construto
+`UnsafeCell` -- sua necessidade será explicada na próxima seção. 
 
-# Orgulhos
+A função `cycle` em `CPU` faz o *fetch* da instrução apontada pelo *program
+counter* atual partir da referência da memória de instruções, e então a
+executa. Eventuais acessos à memória são feitos por meio da referência da
+memória de dados, como esperado. Ao final do ciclo, é atualizada a lógica para
+tratar do *branch delay slot*, que é implementado utilizando os campos
+`branch_to` e `in_delay_slot`.
 
-## Fase I
+# Memória
 
-Depois de três disciplinas com o prof. Emilio, sinto que esse é o primeiro
-projeto que o entrego com orgulho e satisfeito. `:D`
+A memória no `minips-rs` é totalmente abstraída, e as interações da CPU com as
+memórias são feitas exclusivamente a partir da trait `Memory`. Em suma, todos
+os tipos que implementem essa trait devem implementar os métodos `peek,
+peek_into_slice` para leitura e `poke, poke_from_slice` para escrita. Como a
+CPU é parametrizada sobre tipos de memória, a mesma estrutura pode ser
+utilizada para diferentes configurações de memória. Como isso é feito a nível
+de tipos, a configuração total é monomorfizada e otimizada em tempo de
+compilação, não havendo custo de performance atrelado a essa abstração.
 
-Sobretudo, considero esse projeto como uma das bases de código Rust mais
-maduras que já escrevi. Além do modelo de *ownership* que funcionou *bem
-legal*, elenco duas principais faces: o uso de *idioms* e o de *macros*.
+Todos os métodos de acesso a memória recebem uma referência mutável do objeto
+-- isso é necessário inclusive nas operações de leitura, como por exemplo na
+cache. No entanto, pode ser necessário o acesso desses métodos a partir de
+vários lugares diferentes, ou seja, podem ser necessárias várias referências
+mutáveis para o objeto sendo acessado. Isso é um problema: as regras de
+segurança de memória da linguagem Rust explicitamente não permitem múltiplas
+referências mutáveis para um mesmo objeto. Isso é resolvido utilizando o
+pattern de *interior mutability* -- geralmente feito com a construção
+`Rc<RefCell<T>>` em contextos single-threaded, como o nosso. No entanto, essa
+composição gera overhead, portanto foi escolhido utilizar (com cuidado)
+referências simples a `UnsafeCell<T>`, que dá acesso ao ponteiro cru por baixo
+dos panos.
 
-Em relação ao uso de *idioms*, o código inteiro faz tratamento de erros usando
-a monad `Result<T,E>` ("equivalente" ao `Either a b` no Haskell). Ainda, com a
-crate `color_eyre`, pude usar o operador `?` ao longo de todo o código e
-ter mensagens de erro bem bonitinhas e controladas. Experimente usar uma
-instrução não implementada, por exemplo!
+Nesse sentido, podemos falar da cache, implementada em
+`src/emulator/memory/cache.rs`. Ela utiliza deliberadamente *const generics*,
+um construto recentemente estabilizado na linguagem[^update]. A struct `Cache`
+é parametrizada em quatro variáveis: `T`, o tipo de memória do próximo nível,
+`L`, o tamanho em palavras de cada linha da cache, `N`, o número de linhas da
+cache, e `A`, a associatividade da cache. Cada configuração é essencialmente
+uma combinação dessas variáveis, e também é monomorfizada e otimizada em tempo
+de compilação. A implementação é a mesma para todas as configurações -- o
+código leva em consideração cada variável e reage de acordo.
 
-Talvez o uso mais bonito de *idioms* aqui se deu no tratamento dos
-registradores. Usei dois `newtypes`: o `Registers`, que representa o conjunto
-dos 32 registradores MIPS e simplesmente encapsula um array de 32 inteiros de
-32 bits, e o `Register`, que encapsula um "índice" de registrador, que é
-apenas um inteiro de 32 bits.
+[^update]: Está presente na branch *stable* do toolchain a partir da versão
+  1.51. Atualize seu toolchain!
 
-O segundo orgulho, talvez o maior, é a macro `instr_from_yaml` que pode ser
-encontrado no arquivo `minips-macros/src/lib.rs`. Meu workflow para
-implementar novas instruções até antes dessa macro era um pouco *janky*:
-declarar a instrução no `enum Instruction`, escrever a implementação do
-`Display` para o disassemble da instrução, adicionar mais um caso no decoder e
-finalmente implementar a execução da mesma. Bem repetitivo e verboso.
+A cache armazena uma referência para o próximo nível na hierarquia de memória
+e uma referência opcional para a cache irmã. Ambas utilizam, novamente,
+`UnsafeCell`.
 
-Como bom programador que adora gastar mais tempo automatizando a tarefa do que
-a fazendo manualmente, construí a (*procedural*) macro `instr_from_yaml`.
+A função central na implementação da cache é a `find_line`: ela recebe um
+endereço "físico", calcula o número de linha e tag para o endereço, e verifica
+se há alguma linha no *set* relevante que possui a mesma tag. No caso em que
+há, retorna um `Hit(index)`; no caso em que não há, utiliza a política de
+substituição de linhas e retorna um `Miss(index)`. A função que chama esse
+`find_line`, então, trata de executar o procedimento adequado dependendo desse
+resultado. As funções `flush_line`, `load_into_line`, `invalidate_line` e
+`try_copy_from_sister` agem sobre uma linha e fazem, respectivamente, o
+write-back, o carregamento a partir do próximo nível, a invalidação e a
+tentativa de cópia a partir da cache irmã, se presente.
 
-Ela recebe um arquivo `YML` contendo todas as instruções que o emulador
-reconhece, junto de propriedades das mesmas. A macro, então, gera a
-declaração, a implementação de `Display` e a implementação do parser para cada
-uma dessas instruções. 
+# Orgulhos e Dificuldades
 
-Dessa maneira, só adicionar a nova instrução no arquivo `instructions.yml` já
-é suficiente para que o emulador reconheça uma nova instrução. Daí, só falta
-implementar uma vez a instrução no arquivo `cpu.rs` e tudo funciona.
+Utilizar o sistema de tipos para representar as configurações se mostrou
+extremamente eficaz: no modo `release`, a implementação consegue executar a
+entrada `18.naive_dgemm` na configuração 6 em aproximadamente 1.8 segundos, em
+comparação com 30 segundos da implementação do professor.
 
-## Fase II
+A maior dificuldade da fase final foi fazer o debug do comportamento das
+caches. Para isso, a função `debug` da implementação referência e a utilização
+de logs foram essenciais. 
 
-A infraestrutura da macro de instruções foi atualizada para utilizar
-instruções dos tipos `FR` e `FI`. Isso tornou possível a rápida implementação
-das novas instruções para essa segunda fase, o que entendo como um triunfo da
-ideia da macro.
+Outra dificuldade se deu na modelagem do problema: cada *corner case* exigia
+uma mudança na maneira com que a abstração foi feita. Isso acabou fazendo com
+que o código (da cache, em especial) ficasse relativamente bagunçado.
+Infelizmente não há prazo ~~(nem energia)~~ para uma refatoração significativa
+do código.
 
-Continuando com o tema de `newtypes`, os registradores de ponto flutuante
-foram implementados na própria estrutura da CPU (`src/cpu.rs`), exatamente da
-mesma maneira que os registradores de propósito geral. A saber, foi
-implementado um *newtype* `FloatRegisters` que armazena 32 **inteiros sem
-sinal de 32 bits**. Preferi fazer desta maneira e fazer as conversões
-manualmente quando necessário, especialmente por `floats` e `doubles`
-compartilharem os mesmos registradores.
+# Conclusão e Perspectivas
 
-Esse *newtype* `FloatRegister` é indexado por um `FloatRegister`, que também
-implementa o pretty-printing, exatamente na mesma maneira que a dupla
-`Registers` e `Register` fazem para os GPRs.
+Na primeira fase, prometi que implementaria um framebuffer e rodaria Doom no
+me emulador. Isso não ocorreu, porque não tive tempo de implementar mapeamento
+de memória. Nas próximas semanas, pretendo tomar o código aqui escrito como um
+projeto pessoal, separar a parte emulação em uma biblioteca independente, e me
+aventurar escrevendo um emulador de PlayStation.
 
-Além disso, as funções de conversão entre os tipos numéricos foram otimizadas
-utilizando código `unsafe`. 
-
-Em geral, fiquei muito satisfeito com a performance do emulador ~~que é melhor
-que a da implementação do professor~~.
-
-# Experimentos Futuros
-
-Desde a fase I, pretendo programar um framebuffer mapeado em memória, e
-eventualmente rodar o kernel Linux no emulador. Isso provavelmente será feito
-na próxima fase, quando implementarei paginação e caches, criando um
-controlador de memória que suportará mapeamento.
-
-Ainda, durante essa fase fiz alguns experimentos tentando interpretar código
-escrito para o *PlayStation* no emulador. Como prova de conceito, consegui com
-sucesso fazer o disassemble de uma seção de código advindo da BIOS de tal
-console.
+Em conclusão, esse projeto foi um dos mais trabalhosos e satisfatórios que
+já entreguei, mas ao mesmo tempo é o do que mais me orgulho.
