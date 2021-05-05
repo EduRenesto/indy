@@ -20,7 +20,7 @@ colorlinks: true
 - **Link do vídeo:** 
     - *Fase I*: [https://www.youtube.com/watch?v=ObtdlKSBpvQ](https://www.youtube.com/watch?v=ObtdlKSBpvQ)
     - *Fase II:* [https://www.youtube.com/watch?v=6ZF_8dQqiiI](https://www.youtube.com/watch?v=6ZF_8dQqiiI)
-    - *Fase III:* TODO
+    - *Fase III:* [https://www.youtube.com/watch?v=LMXMN6oRTAw](https://www.youtube.com/watch?v=LMXMN6oRTAw)
 
 # Introdução
 
@@ -156,3 +156,30 @@ aventurar escrevendo um emulador de PlayStation.
 
 Em conclusão, esse projeto foi um dos mais trabalhosos e satisfatórios que
 já entreguei, mas ao mesmo tempo é o do que mais me orgulho.
+
+# Bônus: Explicação DGEMM
+
+*Disclaimer*: minha intenção era explicar isso no vídeo, mas não consegui
+fazer isso sem extrapolar os 5 minutos. Mesmo assim, explicando isso no
+relatório me faz extrapolar as 2 páginas, mas julgo isso "menos grave".
+
+O ponto da diferença de performance entre os três DGEMM é sobre os padrões de
+acesso do código às caches. As matrizes são armazenadas linearmente na
+memória, e dependendo de seu tamanho e da configuração da cache, linhas e
+colunas das matrizes caem em mais de uma linha da cache diferentes.
+
+Note que o `naive_dgemm` percorre as matrizes por colunas: então, o padrão de
+acesso de memória dele é em saltos. Isso vai contra o princípio da Localidade
+Espacial da cache; além disso, podem ser que, fixada uma linha na matriz, a
+o set na cache onde essa linha pode estar presente pode ser o mesmo para todas
+as colunas. Isso, dependendo da associatividade da cache, pode causar mais
+*replaces* a cada iteração.
+
+O `regular_dgemm` itera por linhas. Deste modo, segue a Localidade Espacial,
+mas ainda faz *replaces* talvez desnecessários a cada coluna.
+
+O `blocking_dgemm` corrige esse problema final, repartindo a matriz em
+pedaços pequenos que cabem nas mesmas linhas ou em sets diferentes. Assim,
+possíveis replaces obrigatórios só vão ocorrer em transições entre blocos, não
+mais entre cada linha e cada coluna. Por isso é o mais rápido, mesmo tendo
+mais instruções.
