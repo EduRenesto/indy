@@ -9,7 +9,7 @@ CFLAGS := -g -march=mips1 -mcompact-branches=never -O0 \
 %.o: %.S
 	mipsel-linux-gnu-gcc ${CFLAGS} $^ -fPIC -nostdlib -c -o $@
 
-%.elf: minips_api.o %.o
+%.elf: indy_api.o %.o
 	#mipsel-linux-gnu-gcc ${CFLAGS} -T linker.ld -nostdlib $^ -o $@
 	mipsel-linux-gnu-gcc ${CFLAGS} -nostdlib $^ -o $@
 

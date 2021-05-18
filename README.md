@@ -1,21 +1,21 @@
-# minips-rs
+# indy
 
 ## ATENÇÃO: ATUALIZE SEU TOOLCHAIN RUST!
 
-Essa última versão do `minips-rs` usa em peso Const Generics, disponível na
+Essa última versão do `indy` usa em peso Const Generics, disponível na
 branch estável do `rustc` a partir da versão 1.51. Então, se sua versão do 
 toolchain é `stable` e mais antiga que 1.51, atualize! (hint: `rustup update`)
 
 ---
 
-`minips-rs` é um emulador que implementa a ISA MIPS, escrito em Rust para a
+`indy` é um emulador que implementa a ISA MIPS, escrito em Rust para a
 disciplina Arquitetura de Computadores, na UFABC durante o quadrimeste 2021.1
 pelo grande prof. dr. Emilio Francesquini.
 
 Esse emulador (por enquanto) não implementa a ISA inteira -- as instruções
 estão sendo implementadas conforme os programas que quero executar precisem
 delas. Atualmente, todos os programas-entrada disponibilizados pelo professor
-são decodificados e executados com sucesso pelo minips-rs.
+são decodificados e executados com sucesso pelo indy.
 
 Como tenho enorme interesse por baixo nível, estou usando esse projeto para
 explorações pessoais (vide seção *extras*).
@@ -80,7 +80,7 @@ Para ler a documentação em formato HTML (recomendo!), execute o comando:
 $ cargo doc
 ```
 
-A documentação estará disponível no arquivo `target/doc/minips_rs/index.html`.
+A documentação estará disponível no arquivo `target/doc/indy_rs/index.html`.
 
 ## Extras
 

@@ -3,7 +3,7 @@
  * Emilio Francesquini <e.francesquini@ufabc.edu.br> 03/2021
  */
 
-#include "minips.h"
+#include "indy.h"
 
 #define COLS 79
 

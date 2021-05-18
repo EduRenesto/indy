@@ -1,6 +1,6 @@
-#include "minips_api.h"
+#include "indy_api.h"
 
-void minips_print_int(int i) {
+void indy_print_int(int i) {
     asm volatile(
         "addi $v0, $zero, 1;"
         "add $a0, $zero, %[i];"
@@ -10,7 +10,7 @@ void minips_print_int(int i) {
         : "$a0", "$v0");
 }
 
-void minips_print_char(char c) {
+void indy_print_char(char c) {
     asm volatile(
         "addi $v0, $zero, 11;"
         "add $a0, $zero, %[c];"
@@ -20,7 +20,7 @@ void minips_print_char(char c) {
         : "$a0", "$v0");
 }
 
-void minips_print_str(const char* str) {
+void indy_print_str(const char* str) {
     asm volatile(
         "addi $v0, $zero, 4;"
         "add $a0, $zero, %[str];"
@@ -30,7 +30,7 @@ void minips_print_str(const char* str) {
         : "$a0", "$v0");
 }
 
-int minips_read_int() {
+int indy_read_int() {
     int a;
     asm volatile(
         "addi $v0, $zero, 5;"
@@ -43,7 +43,7 @@ int minips_read_int() {
     return a;
 }
 
-void minips_halt() {
+void indy_halt() {
     asm volatile(
         "addi $v0, $zero, 10;"
         "syscall"

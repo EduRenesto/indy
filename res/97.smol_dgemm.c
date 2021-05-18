@@ -2,7 +2,7 @@
  * Emilio Francesquini <e.francesquini@ufabc.edu.br> 03/2021
  */
 
-#include "minips.h"
+#include "indy.h"
 
 #pragma GCC optimize 0
 

@@ -1,4 +1,4 @@
-//! minips-rs: um emulador de MINIPS em Rust!
+//! indy: um emulador de MINIPS em Rust!
 //!
 //! O arquivo [main.rs](src/main.rs) toma conta apenas do CLI do emulador.
 //! Implementação do emulador em si está no módulo `emulator`.
@@ -20,7 +20,7 @@ use emulator::Instruction;
 
 /// Descrição e tabela das configurações de memória disponíveis.
 const CONFIG_HELP: &str = "As configurações de memória podem ser as seguintes:
-(tabela copiada do `minips` de referência)
+(tabela copiada do `indy` de referência)
 
 |------|--------|-----------|-------------|--------|------------|-----------|
 | Conf | Níveis | Tipo      | Tamanho     | Map.   | Tam./Linha | Política  |
@@ -227,7 +227,7 @@ fn main() -> Result<()> {
 
     // Aqui é descrito o CLI do emulador.
     // Não vou comentar porque a API do clap é bem auto-descritiva
-    let matches = App::new("minips-rs")
+    let matches = App::new("indy")
         .version(crate_version!())
         .author("Edu Renesto <eduardo.renesto@aluno.ufabc.edu.br>")
         .subcommand(
@@ -265,7 +265,7 @@ fn main() -> Result<()> {
                         .long("outfile")
                         .short("o")
                         .required(false)
-                        .default_value("minips.trace")
+                        .default_value("indy.trace")
                         .help("Arquivo onde escrever os acessos de memória"),
                 )
                 .arg(Arg::with_name("conf").required(true).index(1).help("Índice da configuração da memória").long_help(CONFIG_HELP))
@@ -287,7 +287,7 @@ fn main() -> Result<()> {
                         .long("outfile")
                         .short("o")
                         .required(false)
-                        .default_value("minips.trace")
+                        .default_value("indy.trace")
                         .help("Arquivo onde escrever os acessos de memória"),
                 )
                 .arg(Arg::with_name("conf").required(true).index(1).help("Índice da configuração da memória").long_help(CONFIG_HELP))
@@ -511,7 +511,7 @@ fn main() -> Result<()> {
         Ok(())
     } else {
         eprintln!("{}", matches.usage());
-        eprintln!("Tente: minips-rs --help");
+        eprintln!("Tente: indy --help");
         Ok(())
     }
 }

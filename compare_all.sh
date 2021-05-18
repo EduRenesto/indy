@@ -27,5 +27,5 @@ tests=("01.soma"
 for i in ${tests[@]}; do
     echo -en "=> Rodando $i..."
 
-     diff -wB <(target/release/minips-rs decode res/$i) <(res/minips decode res/$i) && echo -e " \e[32mok\e[0m" || echo -e " \e[31mFAIL\e[0m"
+     diff -wB <(target/release/indy decode res/$i) <(res/indy decode res/$i) && echo -e " \e[32mok\e[0m" || echo -e " \e[31mFAIL\e[0m"
 done

@@ -3,7 +3,7 @@
  * Emilio Francesquini <e.francesquini@ufabc.edu.br> 04/2021
  */
 
-#include "minips.h"
+#include "indy.h"
 
 int main(int n, char**argc){
     float r,i,R,I,b;

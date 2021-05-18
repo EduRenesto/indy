@@ -1,4 +1,4 @@
-#include "minips_api.h"
+#include "indy_api.h"
 
 struct foo_t {
     int m_a;
@@ -11,30 +11,30 @@ void modify_foo(struct foo_t *foo) {
 }
 
 void __start() {
-    minips_print_str("Digite um numero: ");
-    int a = minips_read_int();
-    minips_print_str("Voce digitou: ");
-    minips_print_int(a);
-    minips_print_str("\n");
+    indy_print_str("Digite um numero: ");
+    int a = indy_read_int();
+    indy_print_str("Voce digitou: ");
+    indy_print_int(a);
+    indy_print_str("\n");
 
     struct foo_t foo = {
         .m_a = 10,
         .m_b = 20,
     };
 
-    minips_print_str("foo.m_a = ");
-    minips_print_int(foo.m_a);
-    minips_print_str(", foo.m_b = ");
-    minips_print_int(foo.m_b);
-    minips_print_str("\n");
+    indy_print_str("foo.m_a = ");
+    indy_print_int(foo.m_a);
+    indy_print_str(", foo.m_b = ");
+    indy_print_int(foo.m_b);
+    indy_print_str("\n");
 
     modify_foo(&foo);
 
-    minips_print_str("foo.m_a = ");
-    minips_print_int(foo.m_a);
-    minips_print_str(", foo.m_b = ");
-    minips_print_int(foo.m_b);
-    minips_print_str("\n");
+    indy_print_str("foo.m_a = ");
+    indy_print_int(foo.m_a);
+    indy_print_str(", foo.m_b = ");
+    indy_print_int(foo.m_b);
+    indy_print_str("\n");
 
-    minips_halt();
+    indy_halt();
 }

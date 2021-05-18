@@ -77,11 +77,11 @@ impl std::fmt::Display for FloatRegister {
 /// Esse módulo contém a declaração das instruções e o decoder das mesmas.
 /// Eles são gerados automaticamente pela macro `instr_from_yaml` usando o
 /// arquivo `instructions.yml`, que está na raíz do projeto. A implementação
-/// dessa macro está na subcrate `minips-macros`.
+/// dessa macro está na subcrate `indy-macros`.
 #[allow(clippy::inconsistent_struct_constructor)]
 #[allow(clippy::upper_case_acronyms)]
 mod autogen {
-    use minips_macros::instr_from_yaml;
+    use indy_macros::instr_from_yaml;
 
     instr_from_yaml!("instructions.yml");
 }

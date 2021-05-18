@@ -1,4 +1,4 @@
-//! minips-macros: implementação das proc-macros do projeto minips-rs
+//! indy-macros: implementação das proc-macros do projeto indy
 //! 
 //! Essa subcrate implementa a procedural macro `instr_from_yaml`, responsável
 //! por parsear o arquivo `instructions.yml` e gerar a declaração das

@@ -1,5 +1,5 @@
 [package]
-name = "minips-rs"
+name = "indy"
 version = "0.1.3"
 authors = ["Edu Renesto <edure95@gmail.com>"]
 edition = "2018"
@@ -10,7 +10,7 @@ edition = "2018"
 clap = "2.33"
 color-eyre = "0.5"
 goblin = { features = ["std", "elf32"], version = "0.3" }
-minips-macros = { path = "minips-macros" }
+indy-macros = { path = "indy-macros" }
 log = "0.4"
 env_logger = "0.8"
 rand = "0.8"

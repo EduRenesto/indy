@@ -1,5 +1,5 @@
 [package]
-name = "minips-macros"
+name = "indy-macros"
 version = "0.1.0"
 authors = ["Edu Renesto <edure95@gmail.com>"]
 edition = "2018"

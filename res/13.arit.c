@@ -1,4 +1,4 @@
-#include "minips.h"
+#include "indy.h"
 
 char t1[] = "Quadrados: ";
 char lf = '\n';

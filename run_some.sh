@@ -16,7 +16,7 @@ tests=("1 res/09.contador"
 
 for i in "${tests[@]}"; do
     echo -e "\e[31m=> Rodando $i...\e[0m"
-    target/release/minips-rs run $i
+    target/release/indy run $i
     echo ""
     sleep 2
 done

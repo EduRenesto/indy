@@ -1,5 +1,5 @@
 /target
-/minips-macros/target
+/indy-macros/target
 flamegraph.svg
 perf.data*
 *.trace

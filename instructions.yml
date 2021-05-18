@@ -1,6 +1,6 @@
 # Esse arquivo contém a lista das instruções MIPS.
 #
-# A subcrate `minips-macros` consome essa lista e gera *automaticamente*
+# A subcrate `indy-macros` consome essa lista e gera *automaticamente*
 # a implementação do decoder das instruções.
 #
 # O rationale desse método é que é menos repetitivo desse jeito. Anteriormente,

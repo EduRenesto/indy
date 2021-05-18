@@ -21,7 +21,7 @@ tests=("01.soma"
 
 for i in ${tests[@]}; do
     echo -e "\e[31m=> Rodando $i...\e[0m"
-    target/release/minips-rs run res/$i
+    target/release/indy run res/$i
     echo ""
     sleep 1
 done

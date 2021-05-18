@@ -1,4 +1,4 @@
-#include "minips.h"
+#include "indy.h"
 
 float pi_f(int n) {
    float x = 1;
