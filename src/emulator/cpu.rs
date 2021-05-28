@@ -8,6 +8,8 @@ use super::FloatRegister;
 use super::Instruction;
 use super::Register;
 
+use super::cop0::Cop0;
+
 use super::instr::{branch_addr, jump_addr, sign_extend, sign_extend_cast};
 
 use super::stats::StatsReporter;
@@ -165,6 +167,9 @@ pub struct Cpu<'a, TD: Memory, TI: Memory> {
 
     /// Condition code do cop1. TODO implementar todos!
     float_cc: bool,
+
+    /// Coprocessor 0.
+    cop0: Cop0,
 }
 
 impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
@@ -189,6 +194,7 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
             float_regs: FloatRegisters([0; 32]),
             stats: StatsReporter::new(),
             float_cc: false,
+            cop0: std::default::Default::default(),
         };
 
         cpu.regs[Register(28)] = gp;
@@ -668,6 +674,18 @@ impl<'a, TD: Memory, TI: Memory> Cpu<'a, TD, TI> {
                     self.branch_to = Some((self.pc as i32 + target + 4) as u32);
                 }
                 self.stats.add_cycles(1);
+            }
+            Instruction::MFC0(args) => {
+                let reg_no = args.rd.0;
+                let sel = word & 0x7; 
+
+                self.regs[args.rt] = self.cop0.read_reg(reg_no, sel);
+            }
+            Instruction::MTC0(args) => {
+                let reg_no = args.rd.0;
+                let sel = word & 0x7; 
+
+                 self.cop0.write_reg(reg_no, sel, self.regs[args.rt]);
             }
             a => return Err(eyre!("Instruction {} not implemented yet!", a)),
         }

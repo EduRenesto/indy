@@ -1,6 +1,7 @@
 //! Módulo que engloba a emulação propriamente dita.
 
 pub(crate) mod cpu;
+pub(crate) mod cop0;
 pub(crate) mod instr;
 pub(crate) mod memory;
 pub(crate) mod stats;

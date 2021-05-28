@@ -75,6 +75,10 @@ r:
         opcode: 0x10
         funct: 0x00
         move_cop: true
+    mtc0:
+        opcode: 0x10
+        funct: 0x01
+        move_cop: true
     mult:
         funct: 0x18
         two_operands_alt: true
