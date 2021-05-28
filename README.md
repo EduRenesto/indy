@@ -27,7 +27,7 @@ specify a memory configuration to emulate:
 
 ```sh
 $ cargo run --release -- run [--entry ENTRY] [config] file # for split files
-$ cargo run --release -- run [config] file.elf # for ELF files
+$ cargo run --release -- runelf [config] file.elf # for ELF files
 ```
 
 Note that the `--release` flag is not required, but advised for performance
@@ -38,6 +38,10 @@ You can check the available memory configurations by running:
 ```sh
 $ cargo run -- run --help
 ```
+
+# Why indy?
+
+The SGI Indy is a cute little MIPS workstation that was made during the 90s. 
 
 # License
 
